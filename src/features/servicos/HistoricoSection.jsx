@@ -1,31 +1,33 @@
 // ─── HistoricoSection.jsx ─────────────────────────────────────────────────────
 // tipo: "servicos" | "compras"
+// Para "compras": aceita compRows, onReativar, onExcluir como props (API).
+// Para "servicos": continua usando localStorage.
 import { useDark } from "../../context/DarkContext";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import theme from "../../theme";
 import TrashButton from "../../components/ui/TrashButton";
 import { joinArr, getRowItens, EstoqueBadge } from "./servicos.utils";
 
-export function HistoricoSection({ tipo }) {
+export function HistoricoSection({ tipo, compRows, onReativar, onExcluir }) {
   const isDark = useDark();
   const [servRows, setServRows] = useLocalStorage("servicos_lista", []);
-  const [compRows, setCompRows] = useLocalStorage("compras_lista", []);
 
+  // Para compras: usa props (API). Para serviços: usa localStorage.
   const hist = tipo === "servicos"
     ? servRows.filter((r) => r.status === "Recebido")
-    : compRows.filter((r) => r.status === "Recebido");
+    : (Array.isArray(compRows) ? compRows : []).filter((r) => r.status === "Recebido");
 
   const reativar = (id) => {
     if (tipo === "servicos") {
-      setServRows((p) => p.map((r) => r.id === id ? { ...r, status: "Enviado",    receivedAt: undefined } : r));
-    } else {
-      setCompRows((p) => p.map((r) => r.id === id ? { ...r, status: "Solicitado", receivedAt: undefined } : r));
+      setServRows((p) => p.map((r) => r.id === id ? { ...r, status: "Enviado", receivedAt: undefined } : r));
+    } else if (onReativar) {
+      onReativar(id);
     }
   };
 
   const excluir = (id) => {
     if (tipo === "servicos") setServRows((p) => p.filter((r) => r.id !== id));
-    else                     setCompRows((p) => p.filter((r) => r.id !== id));
+    else if (onExcluir)      onExcluir(id);
   };
 
   const thStyle = {
@@ -70,6 +72,8 @@ export function HistoricoSection({ tipo }) {
           <tbody>
             {hist.map((row) => {
               const itens = tipo === "compras" ? getRowItens(row) : null;
+              // Suporta tanto received_at (API/snake_case) quanto receivedAt (legado)
+              const receivedDate = row.received_at ?? row.receivedAt ?? "—";
               return (
                 <tr
                   key={row.id}
@@ -77,7 +81,7 @@ export function HistoricoSection({ tipo }) {
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: theme.green, fontWeight: 700 }}>
-                    {row.receivedAt ?? "—"}
+                    {receivedDate}
                   </td>
 
                   {tipo === "servicos" ? (

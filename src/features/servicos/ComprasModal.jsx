@@ -3,7 +3,6 @@
 // ComprasModal: modal de criação de nova compra (multi-item, por pedido ou estoque).
 import { useState, useRef, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
 import theme from "../../theme";
 import { generateId, today } from "../../utils";
 import Modal from "../../components/ui/Modal";
@@ -67,9 +66,14 @@ function ItemAutocomplete({ value, onChange, sugestoes = [] }) {
 }
 
 // ─── ComprasModal ─────────────────────────────────────────────────────────────
-export function ComprasModal({ orders, onClose, onSave }) {
+// categorias e setCategorias são passados como props (compartilhados com EstoqueSection)
+export function ComprasModal({ orders, onClose, onSave, categorias: categoriasProp, setCategorias: setCategoriasProp }) {
   const isDark = useDark();
-  const [categorias, setCategorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
+
+  // Usa props se fornecidos; caso contrário usa DEFAULT_CATEGORIAS como fallback
+  const categorias    = categoriasProp    ?? DEFAULT_CATEGORIAS;
+  const setCategorias = setCategoriasProp ?? (() => {});
+
   const firstCat = categorias[0];
 
   // Overlay "Nova Categoria" rápida
@@ -102,7 +106,7 @@ export function ComprasModal({ orders, onClose, onSave }) {
   const handleSave = () => {
     if (!form.estoque && !form.pedidos.length) { setError("Selecione pelo menos um pedido ou marque 'Para estoque'."); return; }
     if (!form.itens.length || form.itens.some((it) => !it.item.trim())) { setError("Preencha o nome de todos os itens."); return; }
-    setError(""); onSave(form); onClose();
+    setError(""); onSave(form);
   };
 
   const sep = { borderTop: `1px solid ${theme.border(isDark)}`, margin: "16px 0" };

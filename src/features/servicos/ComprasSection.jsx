@@ -1,6 +1,6 @@
 // ─── ComprasSection.jsx ───────────────────────────────────────────────────────
 // CategoriaCard, CategoriaModal, CategoriasConfig, ComprasList, ComprasSection.
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDark } from "../../context/DarkContext";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import theme from "../../theme";
@@ -13,6 +13,8 @@ import TrashButton from "../../components/ui/TrashButton";
 import { DEFAULT_CATEGORIAS, nameToColor, getInitials, AddCard, joinArr, SectionLabel, getRowItens, EstoqueBadge } from "./servicos.utils";
 import { ComprasModal } from "./ComprasModal";
 import { HistoricoSection } from "./HistoricoSection";
+import { comprasService } from "../../services/compras";
+import { estoqueService } from "../../services/estoque";
 
 // ─── CategoriaCard ────────────────────────────────────────────────────────────
 function CategoriaCard({ cat, onClick }) {
@@ -154,17 +156,10 @@ function CategoriasConfig({ categorias, setCategorias }) {
 }
 
 // ─── ComprasList ──────────────────────────────────────────────────────────────
-function ComprasList({ orders }) {
+function ComprasList({ rows, addRow, deleteRow, updateStatus, loading, orders, categorias }) {
   const isDark = useDark();
-  const [rows, setRows]            = useLocalStorage("compras_lista", []);
   const [showModal, setShowModal]   = useState(false);
   const [filtroTipo, setFiltroTipo] = useState("todos");
-
-  const addRow       = (row) => setRows((p) => [...p, row]);
-  const deleteRow    = (id)  => setRows((p) => p.filter((r) => r.id !== id));
-  const updateStatus = (id, v) => setRows((p) => p.map((r) =>
-    r.id === id ? { ...r, status: v, ...(v === "Recebido" ? { receivedAt: today() } : {}) } : r
-  ));
 
   const rowsFiltradas = useMemo(() => rows.filter((r) => {
     if (r.status === "Recebido") return false;
@@ -178,7 +173,14 @@ function ComprasList({ orders }) {
 
   return (
     <>
-      {showModal && <ComprasModal orders={orders} onClose={() => setShowModal(false)} onSave={addRow} />}
+      {showModal && (
+        <ComprasModal
+          orders={orders}
+          categorias={categorias}
+          onClose={() => setShowModal(false)}
+          onSave={(row) => { addRow(row); setShowModal(false); }}
+        />
+      )}
       <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.border(isDark)}`, borderRadius: 12, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
@@ -194,7 +196,9 @@ function ComprasList({ orders }) {
               </tr>
             </thead>
             <tbody>
-              {rowsFiltradas.map((row) => {
+              {loading ? (
+                <tr><td colSpan={7} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>Carregando…</td></tr>
+              ) : rowsFiltradas.map((row) => {
                 const itens = getRowItens(row);
                 return (
                   <tr key={row.id}
@@ -230,8 +234,8 @@ function ComprasList({ orders }) {
                   </tr>
                 );
               })}
-              {!rowsFiltradas.length && (
-                <tr><td colSpan={7} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>{rows.length === 0 ? "Nenhuma compra registrada." : "Nenhuma compra nesta categoria."}</td></tr>
+              {!loading && !rowsFiltradas.length && (
+                <tr><td colSpan={7} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>{rows.filter(r => r.status !== "Recebido").length === 0 ? "Nenhuma compra registrada." : "Nenhuma compra nesta categoria."}</td></tr>
               )}
             </tbody>
           </table>
@@ -254,10 +258,98 @@ function ComprasList({ orders }) {
 
 // ─── ComprasSection ───────────────────────────────────────────────────────────
 // 3 abas: [Compras | ⚙ Categorias | 📋 Histórico]
-export function ComprasSection({ orders }) {
+export function ComprasSection({ orders, categorias, setCategorias }) {
   const isDark = useDark();
-  const [activeTab, setActiveTab]   = useState("compras");
-  const [categorias, setCategorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
+  const [activeTab, setActiveTab] = useState("compras");
+
+  // ── Estado de compras (API) ──────────────────────────────────────────────
+  const [rows, setRows]       = useState([]);
+  const [apiLoading, setApiLoading] = useState(true);
+
+  useEffect(() => {
+    comprasService.list()
+      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setApiLoading(false));
+  }, []);
+
+  // ── CRUD ────────────────────────────────────────────────────────────────
+  const addRow = async (row) => {
+    try {
+      const created = await comprasService.create(row);
+      setRows((p) => [created, ...p]);
+    } catch { /* silent */ }
+  };
+
+  const deleteRow = async (id) => {
+    setRows((p) => p.filter((r) => r.id !== id)); // optimistic
+    try {
+      await comprasService.remove(id);
+    } catch {
+      // revert — re-fetch
+      comprasService.list().then((data) => setRows(Array.isArray(data) ? data : []));
+    }
+  };
+
+  const updateStatus = async (id, v) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+
+    const patch = { ...row, status: v, ...(v === "Recebido" ? { received_at: today() } : {}) };
+    setRows((p) => p.map((r) => r.id === id ? patch : r)); // optimistic
+
+    try {
+      const updated = await comprasService.update(id, patch);
+      setRows((p) => p.map((r) => r.id === id ? updated : r));
+
+      // Ao receber → lança entrada no estoque para cada item
+      if (v === "Recebido") {
+        const itens = getRowItens(row);
+        if (itens.length > 0) {
+          try {
+            const estoqueItems = await estoqueService.list();
+            for (const it of itens) {
+              if (!it.item) continue;
+              const match = Array.isArray(estoqueItems)
+                ? estoqueItems.find((e) => e.nome.toLowerCase() === it.item.toLowerCase())
+                : null;
+              if (match) {
+                await estoqueService.registrarMov(match.id, {
+                  tipo: "entrada",
+                  quantidade: Number(it.qtd) || 1,
+                  motivo: "Compra recebida",
+                });
+              } else {
+                await estoqueService.create({
+                  nome: it.item,
+                  unidade: "unid",
+                  qtd_atual: Number(it.qtd) || 1,
+                  qtd_minima: 0,
+                  categoria: it.categoria || null,
+                  observacao: null,
+                });
+              }
+            }
+          } catch { /* silent — não bloqueia o fluxo */ }
+        }
+      }
+    } catch {
+      setRows((p) => p.map((r) => r.id === id ? row : r)); // revert
+    }
+  };
+
+  const reativarComp = async (id) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const patch = { ...row, status: "Solicitado", received_at: null };
+    setRows((p) => p.map((r) => r.id === id ? patch : r));
+    try {
+      const updated = await comprasService.update(id, patch);
+      setRows((p) => p.map((r) => r.id === id ? updated : r));
+    } catch {
+      setRows((p) => p.map((r) => r.id === id ? row : r));
+    }
+  };
 
   const tabBtnStyle = (active) => ({
     padding: "6px 14px", fontSize: 12, fontWeight: 600, borderRadius: 8,
@@ -274,9 +366,26 @@ export function ComprasSection({ orders }) {
         <button onClick={() => setActiveTab("categorias")} style={tabBtnStyle(activeTab === "categorias")}>⚙ Categorias</button>
         <button onClick={() => setActiveTab("historico")}  style={tabBtnStyle(activeTab === "historico")}>📋 Histórico</button>
       </div>
-      {activeTab === "compras"    && <ComprasList orders={orders} />}
+      {activeTab === "compras"    && (
+        <ComprasList
+          rows={rows}
+          addRow={addRow}
+          deleteRow={deleteRow}
+          updateStatus={updateStatus}
+          loading={apiLoading}
+          orders={orders}
+          categorias={categorias}
+        />
+      )}
       {activeTab === "categorias" && <CategoriasConfig categorias={categorias} setCategorias={setCategorias} />}
-      {activeTab === "historico"  && <HistoricoSection tipo="compras" />}
+      {activeTab === "historico"  && (
+        <HistoricoSection
+          tipo="compras"
+          compRows={rows}
+          onReativar={reativarComp}
+          onExcluir={deleteRow}
+        />
+      )}
     </div>
   );
 }

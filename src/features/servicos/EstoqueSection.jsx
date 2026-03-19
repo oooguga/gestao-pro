@@ -1,15 +1,18 @@
 // ─── EstoqueSection.jsx ───────────────────────────────────────────────────────
 // Controle de insumos e movimentações de estoque.
 // Padrão visual idêntico a ServicosTable / ComprasList.
+// Categorias compartilhadas com Compras via localStorage("compras_categorias").
 import { useState, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
 import { useAuth } from "../../context/AuthContext";
+import { useLocalStorage } from "../../hooks/useLocalStorage";
 import theme from "../../theme";
 import { estoqueService } from "../../services/estoque";
 import Modal from "../../components/ui/Modal";
+import { DEFAULT_CATEGORIAS } from "./servicos.utils";
 
 const UNIDADES = ["unid", "kg", "m", "m²", "L", "par", "rolo", "cx"];
-const EMPTY_FORM = { nome: "", unidade: "kg", qtd_atual: "", qtd_minima: "", observacao: "" };
+const EMPTY_FORM = { nome: "", unidade: "kg", qtd_atual: "", qtd_minima: "", categoria: "", observacao: "" };
 const EMPTY_MOV  = { tipo: "entrada", quantidade: "", motivo: "" };
 
 function fmt(n) {
@@ -22,15 +25,15 @@ function fmtDate(iso) {
 const isBaixo = (item) => Number(item.qtd_atual) < Number(item.qtd_minima);
 
 // ─── Modal: Novo / Editar insumo ──────────────────────────────────────────────
-function InsumoModal({ target, onSave, onClose }) {
+function InsumoModal({ target, categorias, onSave, onClose }) {
   const isDark = useDark();
   const isNew = !target;
   const [form, setForm] = useState(
     target
-      ? { nome: target.nome, unidade: target.unidade, qtd_minima: String(target.qtd_minima ?? ""), observacao: target.observacao ?? "" }
+      ? { nome: target.nome, unidade: target.unidade, qtd_minima: String(target.qtd_minima ?? ""), categoria: target.categoria ?? "", observacao: target.observacao ?? "" }
       : EMPTY_FORM
   );
-  const [error, setError]   = useState("");
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -40,18 +43,20 @@ function InsumoModal({ target, onSave, onClose }) {
     try {
       if (isNew) {
         const created = await estoqueService.create({
-          nome: form.nome.trim(),
-          unidade: form.unidade,
-          qtd_atual: Number(form.qtd_atual) || 0,
+          nome:       form.nome.trim(),
+          unidade:    form.unidade,
+          qtd_atual:  Number(form.qtd_atual) || 0,
           qtd_minima: Number(form.qtd_minima) || 0,
+          categoria:  form.categoria || null,
           observacao: form.observacao || null,
         });
         onSave("create", created);
       } else {
         const updated = await estoqueService.update(target.id, {
-          nome: form.nome.trim(),
-          unidade: form.unidade,
+          nome:       form.nome.trim(),
+          unidade:    form.unidade,
           qtd_minima: Number(form.qtd_minima) || 0,
+          categoria:  form.categoria || null,
           observacao: form.observacao || null,
         });
         onSave("update", updated);
@@ -76,6 +81,16 @@ function InsumoModal({ target, onSave, onClose }) {
           <label style={labelSt}>Nome *</label>
           <input value={form.nome} onChange={(e) => setF("nome", e.target.value)} placeholder="Ex: Chapa AC, Tinta PU…" style={inputSt} autoFocus />
         </div>
+
+        {/* Categoria compartilhada com Compras */}
+        <div>
+          <label style={labelSt}>Categoria</label>
+          <select value={form.categoria} onChange={(e) => setF("categoria", e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
+            <option value="">— Sem categoria —</option>
+            {categorias.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+          </select>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={labelSt}>Unidade</label>
@@ -266,6 +281,9 @@ export default function EstoqueSection() {
   const isDark = useDark();
   const { user } = useAuth();
 
+  // Categorias compartilhadas com Compras (mesma chave localStorage)
+  const [categorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
+
   const canEdit   = user?.role === "admin" || user?.role === "gerente";
   const canDelete = user?.role === "admin";
 
@@ -311,8 +329,8 @@ export default function EstoqueSection() {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
       {/* Modais */}
-      {showCreate  && <InsumoModal target={null}      onSave={onSaveInsumo} onClose={() => setShowCreate(false)} />}
-      {editTarget  && <InsumoModal target={editTarget} onSave={onSaveInsumo} onClose={() => setEditTarget(null)} />}
+      {showCreate  && <InsumoModal target={null}      categorias={categorias} onSave={onSaveInsumo} onClose={() => setShowCreate(false)} />}
+      {editTarget  && <InsumoModal target={editTarget} categorias={categorias} onSave={onSaveInsumo} onClose={() => setEditTarget(null)} />}
       {movTarget   && !histTarget && (
         <MovModal
           item={movTarget}
@@ -385,7 +403,14 @@ export default function EstoqueSection() {
                       onMouseLeave={(e) => { e.currentTarget.style.background = alerta ? theme.redBg(isDark) : "transparent"; }}
                     >
                       <td style={{ ...tdStyle, fontWeight: 600, color: theme.txtPrimary(isDark) }}>
-                        {item.nome}
+                        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
+                          {item.categoria && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: theme.accent, background: `${theme.accent}15`, padding: "1px 6px", borderRadius: 99, whiteSpace: "nowrap", flexShrink: 0 }}>
+                              {item.categoria}
+                            </span>
+                          )}
+                          <span>{item.nome}</span>
+                        </div>
                         {item.observacao && <div style={{ fontSize: 11, color: theme.txtMuted(isDark), fontWeight: 400, marginTop: 1 }}>{item.observacao}</div>}
                       </td>
                       <td style={{ ...tdStyle, fontSize: 11, color: theme.txtMuted(isDark) }}>{item.unidade}</td>
