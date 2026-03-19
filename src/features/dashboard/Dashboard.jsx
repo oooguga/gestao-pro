@@ -222,10 +222,10 @@ function OrderExpandedRow({ order, now, todasCompras, todosServicos }) {
                           <span style={{ fontSize: 11, color: theme.txtSecondary(isDark) }}>
                             Aço: <strong style={{ color: theme.txtPrimary(isDark) }}>{product.aco === "Personalizado" ? product.aco_custom || "Custom" : product.aco}</strong>
                           </span>
-                          {product.madeira_cfg !== "N/A" && product.madeira_items?.length > 0 && (
+                          {product.madeira_cfg && product.madeira_cfg !== "N/A" && product.madeira_items?.length > 0 && (
                             <span style={{ fontSize: 11, color: theme.txtSecondary(isDark) }}>Madeira: <strong style={{ color: theme.txtPrimary(isDark) }}>{product.madeira_items.map((m) => m.mp).join(", ")}</strong></span>
                           )}
-                          {product.couro !== "N/A" && (
+                          {product.couro && product.couro !== "N/A" && (
                             <span style={{ fontSize: 11, color: theme.txtSecondary(isDark) }}>Couro: <strong style={{ color: theme.txtPrimary(isDark) }}>{product.couro}</strong></span>
                           )}
                           <span style={{ fontSize: 11, color: theme.txtSecondary(isDark) }}>

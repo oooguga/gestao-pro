@@ -22,13 +22,16 @@ function useWindowWidth() {
   return width;
 }
 
+// Helper: cobre null, undefined e "N/A"
+const isNA = (v) => !v || v === "N/A";
+
 // ─── Badge compacto de etapa ──────────────────────────────────────────────────
 // Exibe apenas a fração "2/4" com cor indicativa.
 // O texto completo do status fica no tooltip (title).
 function StepBadge({ status, options }) {
   const isDark = useDark();
 
-  if (!status || status === "N/A")
+  if (isNA(status))
     return (
       <span style={{
         display: "inline-block", padding: "2px 6px", borderRadius: 4,
@@ -80,7 +83,7 @@ function EtapasPanel({ product, onUpdateStep }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
 
-      {product.madeira_cfg !== "N/A" && (
+      {!isNA(product.madeira_cfg) && (
         <EtapaCard title="Madeira">
           <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 3 }}>
             {product.madeira_items.map((m, i) => (
@@ -96,7 +99,7 @@ function EtapasPanel({ product, onUpdateStep }) {
         </EtapaCard>
       )}
 
-      {product.eletrica_cfg !== "N/A" && (
+      {!isNA(product.eletrica_cfg) && (
         <EtapaCard title="Elétrica">
           <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 3 }}>
             {product.eletrica_items.map((e, i) => (
@@ -135,7 +138,7 @@ function EtapasPanel({ product, onUpdateStep }) {
         </div>
       </EtapaCard>
 
-      {product.couro !== "N/A" && (
+      {!isNA(product.couro) && (
         <EtapaCard title="Couro">
           <p style={{ fontSize: 12, color: theme.txtSecondary(isDark), margin: "0 0 10px" }}>
             Material: <strong style={{ color: theme.txtPrimary(isDark) }}>{product.couro}</strong>
@@ -408,7 +411,6 @@ export default function OrdensProducao({ orders, setOrders, onEdit }) {
   // ─── Renderização de células ─────────────────────────────────────────────────
   const renderCell = (key, product, pct, fabDone) => {
     const e     = product.etapas;
-    const isNA  = (s) => !s || s === "N/A";
     const badge = (s, opts) => isNA(s)
       ? <span style={{ display:"inline-block", padding:"2px 6px", borderRadius:4, fontSize:11, fontWeight:600, color:theme.txtMuted(isDark), background: isDark?"#1e2130":"#f0f1f5" }}>N/A</span>
       : <StepBadge status={s} options={opts} />;
@@ -429,8 +431,8 @@ export default function OrdensProducao({ orders, setOrders, onEdit }) {
         return <span style={{ color: isOverdue(product.entrega) && pct < 100 ? theme.red : theme.txtSecondary(isDark), fontWeight: isOverdue(product.entrega) && pct < 100 ? 700 : 400, fontSize:11 }}>{product.entrega}</span>;
       case "qtd":
         return <span style={{ fontWeight:800, fontSize:13, color:theme.accent }}>{product.qtd}</span>;
-      case "madeira":    return badge(product.madeira_cfg === "N/A" ? "N/A" : e.madeira?.status,    OPCOES.madeira);
-      case "eletrica":   return badge(product.eletrica_cfg === "N/A" ? "N/A" : e.eletrica?.status,  OPCOES.eletrica);
+      case "madeira":    return badge(isNA(product.madeira_cfg) ? "N/A" : e.madeira?.status,    OPCOES.madeira);
+      case "eletrica":   return badge(isNA(product.eletrica_cfg) ? "N/A" : e.eletrica?.status,  OPCOES.eletrica);
       case "ferragens":  return badge(e.ferragens?.status,   OPCOES.ferragens);
       case "eng_proj":   return badge(e.engenharia?.projeto, OPCOES.engProj);
       case "compra_aco": return badge(e.engenharia?.compra_aco, OPCOES.compraAco.filter(o => o !== "N/A"));
@@ -442,11 +444,11 @@ export default function OrdensProducao({ orders, setOrders, onEdit }) {
       case "fabricacao":
         return <span style={{ fontWeight:800, fontSize:13, color: fabDone === 3 ? theme.green : theme.amber }}>{fabDone}/3</span>;
       case "pintura":
-        return badge(e.pintura?.status === "N/A" ? "N/A" : e.pintura?.status, OPCOES.pintura);
+        return badge(isNA(e.pintura?.status) ? "N/A" : e.pintura?.status, OPCOES.pintura);
       case "assembly":
         return badge(e.assembly?.embalagem === "Concluído" ? "Concluído" : e.assembly?.montagem, OPCOES.assembly);
       case "couro":
-        return badge(product.couro === "N/A" ? "N/A" : e.couro?.status, OPCOES.couro);
+        return badge(isNA(product.couro) ? "N/A" : e.couro?.status, OPCOES.couro);
       case "progresso":
         return <ProgressBar pct={pct} />;
       case "acoes":
