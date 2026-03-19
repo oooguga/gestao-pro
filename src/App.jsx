@@ -169,7 +169,7 @@ export default function App() {
             </div>
 
             <nav style={{ flex: 1, padding: "10px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-              {NAV_ITEMS.map(({ id, label }) => {
+              {NAV_ITEMS.filter(({ id }) => id !== "configuracoes" || user?.role === "admin").map(({ id, label }) => {
                 if (id === "---") return <div key="sep" style={{ height: 1, background: theme.border(isDark), margin: "6px 4px" }} />;
                 const isActive = currentTab === id;
                 return (
@@ -270,7 +270,7 @@ export default function App() {
                     <Servicos orders={orders} />
                   )}
                   {currentTab === "estoque" && <Estoque />}
-                  {currentTab === "configuracoes" && <Configuracoes />}
+                  {currentTab === "configuracoes" && user?.role === "admin" && <Configuracoes />}
                 </Suspense>
               </ErrorBoundary>
             )}
