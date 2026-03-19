@@ -1,7 +1,9 @@
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { useDark } from "../../context/DarkContext";
+import { useAuth } from "../../context/AuthContext";
 import theme from "../../theme";
 import { parseSheetsUrl, DEFAULT_SHEETS_URL } from "../servicos/servicos.utils";
+import UsuariosSection from "./UsuariosSection";
 
 function ConfigCard({ title, children }) {
   const isDark = useDark();
@@ -17,6 +19,7 @@ function ConfigCard({ title, children }) {
 
 export default function Configuracoes() {
   const isDark = useDark();
+  const { user } = useAuth();
   const [sheetsUrl, setSheetsUrl] = useLocalStorage("config_sheets_url", DEFAULT_SHEETS_URL);
   const [gasUrl, setGasUrl]       = useLocalStorage("config_gas_url", "");
 
@@ -40,6 +43,9 @@ export default function Configuracoes() {
       </h2>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+        {/* Gerenciamento de Usuários — somente admin */}
+        {user?.role === "admin" && <UsuariosSection />}
 
         {/* Google Sheets */}
         <ConfigCard title="Google Sheets — Planilha de Importação">

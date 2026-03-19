@@ -310,7 +310,14 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
               </div>
               <div style={subSectionStyle}>
                 <FieldLabel>Couro</FieldLabel>
-                <DSel value={product.couro} options={["N/A", "Preto", "Marrom"]} onChange={(v) => updateProduct(i, "couro", v)} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <DSel value={product.couro} options={["N/A", "Preto", "Marrom"]} onChange={(v) => updateProduct(i, "couro", v)} />
+                  <button
+                    type="button"
+                    title="Adicionar nova opção"
+                    style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", border: `1px dashed ${theme.accent}`, background: `${theme.accent}12`, color: theme.accent, cursor: "default", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7 }}
+                  >+</button>
+                </div>
               </div>
             </div>
 
@@ -331,7 +338,14 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8 }}>
                         <div style={{ gridColumn: "1 / -1" }}>
                           <FieldLabel>Matéria-prima</FieldLabel>
-                          <DSel value={item.mp} options={MP_MADEIRA} onChange={(v) => updateMadeiraItem(i, mi, "mp", v)} />
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <DSel value={item.mp} options={MP_MADEIRA} onChange={(v) => updateMadeiraItem(i, mi, "mp", v)} />
+                            <button
+                              type="button"
+                              title="Adicionar nova opção"
+                              style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", border: `1px dashed ${theme.accent}`, background: `${theme.accent}12`, color: theme.accent, cursor: "default", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7 }}
+                            >+</button>
+                          </div>
                         </div>
                         <div><FieldLabel>Largura (mm)</FieldLabel><DInput type="number" value={item.larg} onChange={(e) => updateMadeiraItem(i, mi, "larg", e.target.value)} /></div>
                         <div><FieldLabel>Comprimento (mm)</FieldLabel><DInput type="number" value={item.comp} onChange={(e) => updateMadeiraItem(i, mi, "comp", e.target.value)} /></div>
