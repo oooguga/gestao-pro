@@ -278,6 +278,22 @@ export function ComprasSection({ orders, categorias, setCategorias }) {
     try {
       const created = await comprasService.create(row);
       setRows((p) => [created, ...p]);
+
+      // Auto-salva itens novos como sugestão na categoria correspondente
+      // Assim, itens comprados ficam disponíveis como sugestão nas próximas compras
+      const itens = getRowItens(row);
+      if (itens.length > 0 && categorias.length > 0) {
+        let changed = false;
+        const updatedCats = categorias.map((cat) => {
+          const novos = itens
+            .filter((it) => it.categoria === cat.nome && it.item && !cat.itens.includes(it.item))
+            .map((it) => it.item);
+          if (novos.length === 0) return cat;
+          changed = true;
+          return { ...cat, itens: [...cat.itens, ...novos] };
+        });
+        if (changed) setCategorias(updatedCats);
+      }
     } catch { /* silent */ }
   };
 
@@ -302,8 +318,9 @@ export function ComprasSection({ orders, categorias, setCategorias }) {
       const updated = await comprasService.update(id, patch);
       setRows((p) => p.map((r) => r.id === id ? updated : r));
 
-      // Ao receber → lança entrada no estoque para cada item
-      if (v === "Recebido") {
+      // Ao receber → lança entrada no estoque SOMENTE se destino for "Para Estoque"
+      // Compras "Por Pedido" não entram no estoque — foram compradas para um pedido específico
+      if (v === "Recebido" && row.estoque) {
         const itens = getRowItens(row);
         if (itens.length > 0) {
           try {
