@@ -4,7 +4,8 @@ import { useAuth } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import theme from "./theme";
 import { pedidosService } from "./services/pedidos";
-import LoginPage from "./features/auth/LoginPage";
+// Login temporariamente desabilitado — reativar quando pronto para produção
+// import LoginPage from "./features/auth/LoginPage";
 
 // ─── Lazy loading das guias ───────────────────────────────────────────────────
 const Dashboard      = lazy(() => import("./features/dashboard/Dashboard"));
@@ -136,11 +137,8 @@ export default function App() {
       {/* Enquanto verifica sessão */}
       {isInitializing && <PageLoader />}
 
-      {/* Tela de login */}
-      {!isInitializing && !isAuthenticated && <LoginPage isDark={isDark} />}
-
-      {/* App principal */}
-      {!isInitializing && isAuthenticated && (
+      {/* App principal — login desabilitado temporariamente */}
+      {!isInitializing && (
         <div style={{ minHeight: "100vh", background: theme.bgPage(isDark), fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: theme.txtPrimary(isDark) }}>
 
           {/* Overlay do sidebar (mobile) */}
