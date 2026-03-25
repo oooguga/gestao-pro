@@ -165,7 +165,7 @@ function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onDragStart
 
 // ─── Coluna ───────────────────────────────────────────────────────────────────
 function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTarefa,
-                  onDeleteColuna, onRenameColuna, onDragStart, onDrop }) {
+                  onDeleteColuna, onRenameColuna, onCorColuna, onDragStart, onDrop }) {
   const isDark = useDark();
   const [addingCard, setAddingCard] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -173,6 +173,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
   const [editingName, setEditingName] = useState(false);
   const [nomeEdit, setNomeEdit] = useState(coluna.nome);
   const [dragOver, setDragOver] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const menuRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -203,7 +204,40 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
 
   const colCount = coluna.tarefas?.length ?? 0;
   const hdrTxt   = "#fff";
-  const cardListBg = isDark ? "rgba(0,0,0,.15)" : "rgba(0,0,0,.04)";
+
+  // ── Modo recolhido ──────────────────────────────────────────────────────────
+  if (collapsed) return (
+    <div
+      style={{
+        width: 44, flexShrink: 0, borderRadius: 12,
+        background: coluna.cor ?? "#2d4a2d",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        padding: "10px 0", gap: 8, cursor: "pointer", userSelect: "none",
+      }}
+      title={`Expandir "${coluna.nome}"`}
+    >
+      <button
+        onClick={() => setCollapsed(false)}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: "4px",
+                 color: "#fff", display: "flex", alignItems: "center" }}
+        title="Expandir"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="15 18 9 12 15 6" /><polyline points="9 18 3 12 9 6" />
+        </svg>
+      </button>
+      <span style={{
+        writingMode: "vertical-rl", textOrientation: "mixed", transform: "rotate(180deg)",
+        fontSize: 13, fontWeight: 700, color: "#fff", letterSpacing: ".3px",
+        flex: 1, display: "flex", alignItems: "center", gap: 6,
+      }}>
+        {coluna.nome}
+        {colCount > 0 && (
+          <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.75 }}>({colCount})</span>
+        )}
+      </span>
+    </div>
+  );
 
   return (
     <div
@@ -245,38 +279,107 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
             </span>
           )}
 
+          {/* Botão recolher */}
+          <button
+            onClick={() => setCollapsed(true)}
+            title="Recolher lista"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+                     borderRadius: 6, opacity: 0.75, display: "flex", alignItems: "center",
+                     flexShrink: 0 }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+              <polyline points="9 18 15 12 9 6" /><polyline points="15 18 21 12 15 6" />
+            </svg>
+          </button>
+
           {/* Menu ··· */}
           <div ref={menuRef} style={{ position: "relative" }}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 6,
-                       opacity: 0.8, display: "flex", alignItems: "center" }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", borderRadius: 6,
+                       opacity: 0.85, display: "flex", alignItems: "center" }}
             >
               <IconDots color="#fff" />
             </button>
+
             {menuOpen && (
               <div style={{
-                position: "absolute", top: "100%", right: 0, zIndex: 9999,
-                background: isDark ? "#1e2433" : "#fff",
-                border: `1px solid ${theme.border(isDark)}`,
-                borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.4)",
-                minWidth: 160, overflow: "hidden",
+                position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 9999,
+                background: isDark ? "#282e3e" : "#ffffff",
+                border: `1px solid ${isDark ? "#3a4258" : "#d1d5db"}`,
+                borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,.45)",
+                width: 240,
               }}>
-                <button
-                  onClick={() => { setEditingName(true); setMenuOpen(false); }}
-                  style={{ width: "100%", padding: "10px 14px", background: "none", border: "none",
-                           cursor: "pointer", textAlign: "left", fontSize: 13,
-                           color: isDark ? "#e2e8f0" : "#1e293b" }}
-                >
-                  ✏️ Renomear lista
-                </button>
-                <button
-                  onClick={() => { onDeleteColuna(coluna.id); setMenuOpen(false); }}
-                  style={{ width: "100%", padding: "10px 14px", background: "none", border: "none",
-                           cursor: "pointer", textAlign: "left", fontSize: 13, color: "#ef4444" }}
-                >
-                  🗑 Excluir lista
-                </button>
+                {/* Header */}
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 14px 10px",
+                  borderBottom: `1px solid ${isDark ? "#3a4258" : "#e5e7eb"}`,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? "#e2e8f0" : "#1e293b", letterSpacing: ".3px" }}>
+                    Ações da Lista
+                  </span>
+                  <button
+                    onClick={() => setMenuOpen(false)}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+                             borderRadius: 6, fontSize: 16, color: isDark ? "#94a3b8" : "#6b7280",
+                             lineHeight: 1, display: "flex", alignItems: "center" }}
+                  >✕</button>
+                </div>
+
+                {/* Ações */}
+                {[
+                  { icon: "✏️", label: "Renomear lista",  action: () => { setEditingName(true); setMenuOpen(false); } },
+                  { icon: "➕", label: "Adicionar cartão", action: () => { setAddingCard(true); setMenuOpen(false); } },
+                ].map(({ icon, label, action }) => (
+                  <button key={label} onClick={action}
+                    style={{ width: "100%", padding: "10px 14px", background: "none", border: "none",
+                             cursor: "pointer", textAlign: "left", fontSize: 13,
+                             color: isDark ? "#cbd5e1" : "#374151",
+                             display: "flex", alignItems: "center", gap: 8,
+                             borderBottom: `1px solid ${isDark ? "#3a4258" : "#f3f4f6"}` }}
+                  >
+                    <span style={{ fontSize: 15 }}>{icon}</span>{label}
+                  </button>
+                ))}
+
+                {/* Alterar cor da lista */}
+                <div style={{ padding: "10px 14px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: isDark ? "#64748b" : "#9ca3af",
+                                letterSpacing: ".6px", marginBottom: 8 }}>
+                    ALTERAR COR DA LISTA
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {CORES_COLUNA.map((c) => (
+                      <button key={c}
+                        onClick={async () => { await onCorColuna(coluna.id, c); setMenuOpen(false); }}
+                        style={{
+                          width: 36, height: 28, borderRadius: 6, background: c, border: "none",
+                          cursor: "pointer", padding: 0,
+                          outline: coluna.cor === c ? `3px solid ${isDark ? "#fff" : "#1e293b"}` : "none",
+                          outlineOffset: 1,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {coluna.cor === c && <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Excluir */}
+                <div style={{ padding: "0 8px 8px" }}>
+                  <button
+                    onClick={() => { onDeleteColuna(coluna.id); setMenuOpen(false); }}
+                    style={{ width: "100%", padding: "9px 10px", background: "none",
+                             border: `1px solid ${isDark ? "#4a3333" : "#fecaca"}`,
+                             borderRadius: 8, cursor: "pointer", textAlign: "left",
+                             fontSize: 13, color: "#ef4444",
+                             display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <span style={{ fontSize: 15 }}>🗑</span> Excluir lista
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -486,6 +589,11 @@ export default function Tarefas() {
     setColunas((p) => p.map((c) => c.id === id ? { ...c, nome: updated.nome } : c));
   };
 
+  const handleCorColuna = async (id, cor) => {
+    await tarefasService.updateColuna(id, { cor });
+    setColunas((p) => p.map((c) => c.id === id ? { ...c, cor } : c));
+  };
+
   // ─── Handlers de tarefa ─────────────────────────────────────────────────────
   const handleAddTarefa = async (coluna_id, titulo) => {
     const nova = await tarefasService.createTarefa({ coluna_id, titulo });
@@ -588,6 +696,7 @@ export default function Tarefas() {
             onCorTarefa={handleCorTarefa}
             onDeleteColuna={handleDeleteColuna}
             onRenameColuna={handleRenameColuna}
+            onCorColuna={handleCorColuna}
             onDragStart={handleDragStart}
             onDrop={handleDrop}
           />
