@@ -1,7 +1,8 @@
 // ─── ServicosTable.jsx ────────────────────────────────────────────────────────
 // ServicosTable: tabela de serviços em aberto com filtros e checklist.
 // ServicoSection: navegação por abas (Serviços | ⚙ Fornecedores | 📋 Histórico).
-import { useState, useMemo, useEffect, useCallback } from "react";
+// Estado de rows levantado para ServicoSection → API via tercService.
+import { useState, useMemo, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import theme from "../../theme";
@@ -11,11 +12,12 @@ import TrashButton from "../../components/ui/TrashButton";
 import { DEFAULT_FORNECEDORES, DEFAULT_SHEETS_URL, joinArr, parseSheetsUrl } from "./servicos.utils";
 import { ServiceModal, ConferenciaModal, FornecedoresConfig } from "./ServicosModais";
 import { HistoricoSection } from "./HistoricoSection";
+import { tercService } from "../../services/terc";
 
 // ─── ServicosTable ────────────────────────────────────────────────────────────
-function ServicosTable({ orders, fornecedores, sheetsUrl }) {
+// Recebe rows e handlers do pai (ServicoSection) — sem estado local de rows.
+function ServicosTable({ orders, fornecedores, sheetsUrl, rows, addRow, deleteRow, updateStatus, updateRow }) {
   const isDark = useDark();
-  const [rows, setRows]           = useLocalStorage("servicos_lista", []);
   const [showModal, setShowModal]           = useState(false);
   const [conferenciaRow, setConferenciaRow] = useState(null);
 
@@ -35,13 +37,6 @@ function ServicosTable({ orders, fornecedores, sheetsUrl }) {
     if (fFornecedor && r.fornecedor !== fFornecedor) return false;
     return true;
   }), [openRows, fPedido, fProduto, fLote, fFornecedor]);
-
-  const addRow       = useCallback((row) => setRows((p) => [...p, row]), []);
-  const deleteRow    = useCallback((id)  => setRows((p) => p.filter((r) => r.id !== id)), []);
-  const updateStatus = useCallback((id, v) => setRows((p) => p.map((r) =>
-    r.id === id ? { ...r, status: v, ...(v === "Recebido" ? { receivedAt: today() } : {}) } : r
-  )), []);
-  const updateRow    = useCallback((id, patch) => setRows((p) => p.map((r) => r.id === id ? { ...r, ...patch } : r)), []);
 
   // Qualquer fornecedor com sheetGid configurado pode abrir conferência
   const temPlanilha = (row) => {
@@ -121,7 +116,7 @@ function ServicosTable({ orders, fornecedores, sheetsUrl }) {
                   <td style={{ ...tdStyle, fontWeight: 600, color: theme.txtPrimary(isDark) }}>{row.lote || "—"}</td>
                   <td style={tdStyle}>{row.fornecedor || "—"}</td>
                   <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>{row.orcamento || "—"}</td>
-                  <td style={{ ...tdStyle, whiteSpace: "nowrap", fontSize: 11, color: theme.txtMuted(isDark) }}>{row.createdAt || "—"}</td>
+                  <td style={{ ...tdStyle, whiteSpace: "nowrap", fontSize: 11, color: theme.txtMuted(isDark) }}>{row.createdAt || row.created_at?.slice(0, 10) || "—"}</td>
                   <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{row.previsao || "—"}</td>
                   <td style={tdStyle}>
                     {row.linkDrive
@@ -168,6 +163,7 @@ function ServicosTable({ orders, fornecedores, sheetsUrl }) {
 
 // ─── ServicoSection ───────────────────────────────────────────────────────────
 // 3 abas: [Serviços | ⚙ Fornecedores | 📋 Histórico]
+// Estado de rows gerenciado aqui via tercService (API).
 export function ServicoSection({ orders }) {
   const isDark = useDark();
   const [activeTab, setActiveTab]       = useState("servicos");
@@ -175,8 +171,49 @@ export function ServicoSection({ orders }) {
   const [sheetsUrl, setSheetsUrl]       = useLocalStorage("config_sheets_url", DEFAULT_SHEETS_URL);
   const [gasUrl, setGasUrl]             = useLocalStorage("config_gas_url", "");
 
-  // Migração 1: se dados antigos eram string[], converte para object[]
-  // Migração 2: garante que Joilaser/Laurentino têm sheetGid correto
+  // ─── Estado de rows via API ─────────────────────────────────────────────────
+  const [rows, setRows]     = useState([]);
+  const [loadingTerc, setLoadingTerc] = useState(true);
+
+  useEffect(() => {
+    tercService.list()
+      .then(setRows).catch(() => {}).finally(() => setLoadingTerc(false));
+  }, []);
+
+  const addRow = async (row) => {
+    try {
+      const created = await tercService.create(row);
+      setRows((p) => [created, ...p]);
+    } catch {}
+  };
+
+  const deleteRow = async (id) => {
+    try {
+      await tercService.remove(id);
+      setRows((p) => p.filter((r) => r.id !== id));
+    } catch {}
+  };
+
+  const updateStatus = async (id, v) => {
+    try {
+      const patch = { status: v, ...(v === "Recebido" ? { received_at: today() } : {}) };
+      const updated = await tercService.update(id, patch);
+      setRows((p) => p.map((r) => r.id === id ? updated : r));
+    } catch {}
+  };
+
+  const updateRow = async (id, patch) => {
+    try {
+      const updated = await tercService.update(id, patch);
+      setRows((p) => p.map((r) => r.id === id ? updated : r));
+    } catch {}
+  };
+
+  const reativarServ = async (id) => {
+    await updateStatus(id, "Enviado");
+  };
+
+  // ─── Migração de fornecedores ───────────────────────────────────────────────
   const fornecedoresNorm = useMemo(() => {
     if (!fornecedores.length) return [];
     if (typeof fornecedores[0] === "string") {
@@ -186,11 +223,9 @@ export function ServicoSection({ orders }) {
   }, [fornecedores]);
 
   useEffect(() => {
-    // Migração A: URL vazia ou não-publicada → seta DEFAULT_SHEETS_URL
     const { isPublished } = parseSheetsUrl(sheetsUrl);
     if (!sheetsUrl || !isPublished) setSheetsUrl(DEFAULT_SHEETS_URL);
 
-    // Migração B: garante sheetGid numérico nos fornecedores (Joilaser/Laurentino)
     const isGidInvalid = (gid) => !gid || !/^\d+$/.test(String(gid).trim());
     const needsGid = fornecedoresNorm.some((f) => {
       const def = DEFAULT_FORNECEDORES.find((d) => d.nome === f.nome);
@@ -219,11 +254,31 @@ export function ServicoSection({ orders }) {
         <button onClick={() => setActiveTab("fornecedores")} style={tabBtnStyle(activeTab === "fornecedores")}>⚙ Fornecedores</button>
         <button onClick={() => setActiveTab("historico")}    style={tabBtnStyle(activeTab === "historico")}>📋 Histórico</button>
       </div>
-      {activeTab === "servicos"     && <ServicosTable orders={orders} fornecedores={fornecedoresNorm} sheetsUrl={sheetsUrl} />}
+      {activeTab === "servicos" && (
+        loadingTerc
+          ? <div style={{ fontSize: 13, color: theme.txtMuted(isDark), padding: "20px 0" }}>Carregando serviços…</div>
+          : <ServicosTable
+              orders={orders}
+              fornecedores={fornecedoresNorm}
+              sheetsUrl={sheetsUrl}
+              rows={rows}
+              addRow={addRow}
+              deleteRow={deleteRow}
+              updateStatus={updateStatus}
+              updateRow={updateRow}
+            />
+      )}
       {activeTab === "fornecedores" && (
         <FornecedoresConfig fornecedores={fornecedoresNorm} setFornecedores={setFornecedores} gasUrl={gasUrl} />
       )}
-      {activeTab === "historico"    && <HistoricoSection tipo="servicos" />}
+      {activeTab === "historico" && (
+        <HistoricoSection
+          tipo="servicos"
+          servRows={rows}
+          onReativarServ={reativarServ}
+          onExcluirServ={deleteRow}
+        />
+      )}
     </div>
   );
 }

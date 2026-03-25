@@ -1,6 +1,6 @@
 // ─── EstoqueSection.jsx ───────────────────────────────────────────────────────
 // Controle de insumos e movimentações de estoque.
-// Padrão visual idêntico a ServicosTable / ComprasList.
+// Duas sub-abas: 🔩 Insumos (lixas, parafusos) | 🪵 Matéria-Prima (chapas, tubos)
 // Categorias compartilhadas com Compras via localStorage("compras_categorias").
 import { useState, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
@@ -11,9 +11,14 @@ import { estoqueService } from "../../services/estoque";
 import Modal from "../../components/ui/Modal";
 import { DEFAULT_CATEGORIAS } from "./servicos.utils";
 
-const UNIDADES = ["unid", "kg", "m", "m²", "L", "par", "rolo", "cx"];
+const UNIDADES  = ["unid", "kg", "m", "m²", "L", "par", "rolo", "cx"];
 const EMPTY_FORM = { nome: "", unidade: "kg", qtd_atual: "", qtd_minima: "", categoria: "", observacao: "" };
 const EMPTY_MOV  = { tipo: "entrada", quantidade: "", motivo: "" };
+
+const TIPO_META = {
+  insumo:        { label: "Insumos",       emoji: "🔩", labelSingular: "Insumo" },
+  materia_prima: { label: "Matéria-Prima", emoji: "🪵", labelSingular: "Mat. Prima" },
+};
 
 function fmt(n) {
   return Number(n ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -24,10 +29,97 @@ function fmtDate(iso) {
 }
 const isBaixo = (item) => Number(item.qtd_atual) < Number(item.qtd_minima);
 
+// ─── DashboardView ────────────────────────────────────────────────────────────
+function DashboardView({ items, canEdit, onEntrada, onSaida, isDark }) {
+  const baixo = items.filter(isBaixo);
+  const ok    = items.length - baixo.length;
+
+  const catMap = {};
+  items.forEach((i) => {
+    const key = i.categoria || "Sem categoria";
+    catMap[key] = (catMap[key] || 0) + 1;
+  });
+
+  const kpiCard = (emoji, value, label, color, bg, border) => (
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 12, padding: "18px 20px", textAlign: "center", flex: 1 }}>
+      <div style={{ fontSize: 22, lineHeight: 1, marginBottom: 8 }}>{emoji}</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color, lineHeight: 1.1, marginBottom: 4 }}>{value}</div>
+      <div style={{ fontSize: 11, color: theme.txtMuted(isDark), fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+    </div>
+  );
+
+  if (items.length === 0) {
+    return (
+      <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.border(isDark)}`, borderRadius: 12, padding: 32, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>
+        Nenhum item cadastrado. Clique em "+ Novo" para começar.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* KPI cards */}
+      <div style={{ display: "flex", gap: 12 }}>
+        {kpiCard("📦", items.length, "Total",      theme.accent, theme.bgCard(isDark),              theme.border(isDark))}
+        {kpiCard("✓",  ok,           "Em estoque", theme.green,  theme.greenBg(isDark),             `${theme.green}44`)}
+        {kpiCard("⚠",  baixo.length, "Críticos",
+          baixo.length > 0 ? theme.red : theme.txtMuted(isDark),
+          baixo.length > 0 ? theme.redBg(isDark) : theme.bgCard(isDark),
+          baixo.length > 0 ? `${theme.red}44`    : theme.border(isDark))}
+      </div>
+
+      {/* Alertas críticos */}
+      {baixo.length > 0 && (
+        <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.red}44`, borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ padding: "10px 16px", background: theme.redBg(isDark), borderBottom: `1px solid ${theme.red}33` }}>
+            <span style={{ color: theme.red, fontWeight: 700, fontSize: 13 }}>⚠ Itens abaixo do mínimo</span>
+          </div>
+          {baixo.map((item) => (
+            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: `1px solid ${theme.border(isDark)}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: theme.txtPrimary(isDark), fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nome}</div>
+                <div style={{ fontSize: 11, color: theme.txtMuted(isDark), marginTop: 2 }}>
+                  Atual: <strong style={{ color: theme.red }}>{fmt(item.qtd_atual)} {item.unidade}</strong>
+                  {" · "}Mínimo: {fmt(item.qtd_minima)} {item.unidade}
+                </div>
+              </div>
+              {canEdit && (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => onEntrada(item)} style={{ padding: "5px 11px", borderRadius: 6, border: `1px solid ${theme.green}44`, background: theme.greenBg(isDark), color: theme.green, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>▲ Entrada</button>
+                  <button onClick={() => onSaida(item)}  style={{ padding: "5px 11px", borderRadius: 6, border: `1px solid ${theme.red}44`,   background: theme.redBg(isDark),   color: theme.red,   cursor: "pointer", fontSize: 12, fontWeight: 700 }}>▼ Saída</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Por categoria */}
+      {Object.keys(catMap).length > 0 && (
+        <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.border(isDark)}`, borderRadius: 12, padding: "14px 16px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: theme.txtMuted(isDark), textTransform: "uppercase", marginBottom: 10 }}>Por categoria</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([cat, count]) => (
+              <span key={cat} style={{
+                fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99,
+                background: cat === "Sem categoria" ? theme.bgInput(isDark) : `${theme.accent}15`,
+                color:      cat === "Sem categoria" ? theme.txtMuted(isDark) : theme.accent,
+                border:     `1px solid ${cat === "Sem categoria" ? theme.border(isDark) : theme.accent + "33"}`,
+              }}>
+                {cat} <span style={{ opacity: 0.6 }}>({count})</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Modal: Novo / Editar insumo ──────────────────────────────────────────────
-function InsumoModal({ target, categorias, onSave, onClose }) {
+function InsumoModal({ target, categorias, tipoItem, onSave, onClose }) {
   const isDark = useDark();
-  const isNew = !target;
+  const isNew  = !target;
   const [form, setForm] = useState(
     target
       ? { nome: target.nome, unidade: target.unidade, qtd_minima: String(target.qtd_minima ?? ""), categoria: target.categoria ?? "", observacao: target.observacao ?? "" }
@@ -49,6 +141,7 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
           qtd_minima: Number(form.qtd_minima) || 0,
           categoria:  form.categoria || null,
           observacao: form.observacao || null,
+          tipo:       tipoItem ?? "insumo",
         });
         onSave("create", created);
       } else {
@@ -58,6 +151,7 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
           qtd_minima: Number(form.qtd_minima) || 0,
           categoria:  form.categoria || null,
           observacao: form.observacao || null,
+          tipo:       target.tipo ?? tipoItem ?? "insumo",
         });
         onSave("update", updated);
       }
@@ -75,14 +169,12 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
   const btnBase = { padding: "8px 18px", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" };
 
   return (
-    <Modal title={isNew ? "Novo Insumo" : "Editar Insumo"} onClose={onClose} maxWidth={440}>
+    <Modal title={isNew ? "Novo Item" : "Editar Item"} onClose={onClose} maxWidth={440}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
           <label style={labelSt}>Nome *</label>
-          <input value={form.nome} onChange={(e) => setF("nome", e.target.value)} placeholder="Ex: Chapa AC, Tinta PU…" style={inputSt} autoFocus />
+          <input value={form.nome} onChange={(e) => setF("nome", e.target.value)} placeholder="Ex: Chapa AC, Lixa 80, Parafuso M8…" style={inputSt} autoFocus />
         </div>
-
-        {/* Categoria compartilhada com Compras */}
         <div>
           <label style={labelSt}>Categoria</label>
           <select value={form.categoria} onChange={(e) => setF("categoria", e.target.value)} style={{ ...inputSt, cursor: "pointer" }}>
@@ -90,7 +182,6 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
             {categorias.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}
           </select>
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={labelSt}>Unidade</label>
@@ -111,7 +202,7 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
         )}
         {!isNew && (
           <div style={{ fontSize: 11, color: theme.txtMuted(isDark), background: theme.bgInput(isDark), padding: "8px 12px", borderRadius: 8 }}>
-            💡 Para ajustar a quantidade atual use &quot;+ Mov.&quot; na tabela.
+            💡 Para ajustar a quantidade atual use ▲ ou ▼ na tabela.
           </div>
         )}
         <div>
@@ -131,10 +222,10 @@ function InsumoModal({ target, categorias, onSave, onClose }) {
 }
 
 // ─── Modal: Movimentação ──────────────────────────────────────────────────────
-function MovModal({ item, onDone, onHistorico, onClose }) {
+function MovModal({ item, onDone, onHistorico, onClose, initialTipo }) {
   const isDark = useDark();
-  const [form, setForm]   = useState(EMPTY_MOV);
-  const [error, setError] = useState("");
+  const [form, setForm]       = useState({ ...EMPTY_MOV, tipo: initialTipo ?? "entrada" });
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -144,9 +235,9 @@ function MovModal({ item, onDone, onHistorico, onClose }) {
     setLoading(true); setError("");
     try {
       const updated = await estoqueService.registrarMov(item.id, {
-        tipo: form.tipo,
+        tipo:       form.tipo,
         quantidade: Number(form.quantidade),
-        motivo: form.motivo || null,
+        motivo:     form.motivo || null,
       });
       onDone(updated);
       onClose();
@@ -168,7 +259,6 @@ function MovModal({ item, onDone, onHistorico, onClose }) {
         {item.nome} · atual: <strong style={{ color: isBaixo(item) ? theme.red : theme.txtPrimary(isDark) }}>{fmt(item.qtd_atual)} {item.unidade}</strong>
       </div>
       <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {/* Tipo */}
         <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: `1px solid ${theme.border(isDark)}` }}>
           {["entrada", "saida"].map((t) => (
             <button key={t} type="button" onClick={() => setF("tipo", t)}
@@ -280,36 +370,45 @@ function ConfirmDeleteModal({ item, onConfirm, onClose }) {
 export default function EstoqueSection() {
   const isDark = useDark();
   const { user } = useAuth();
-
-  // Categorias compartilhadas com Compras (mesma chave localStorage)
   const [categorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
 
   const canEdit   = user?.role === "admin" || user?.role === "gerente";
   const canDelete = user?.role === "admin";
 
-  const [items,   setItems]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [items,     setItems]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [tipoAtivo, setTipoAtivo] = useState("insumo");   // "insumo" | "materia_prima"
+  const [view,      setView]      = useState("lista");     // "lista" | "dashboard"
+  const [movTipo,   setMovTipo]   = useState(null);        // "entrada" | "saida" | null
 
-  const [showCreate,  setShowCreate]  = useState(false);
-  const [editTarget,  setEditTarget]  = useState(null);
-  const [movTarget,   setMovTarget]   = useState(null);
-  const [histTarget,  setHistTarget]  = useState(null);
-  const [delTarget,   setDelTarget]   = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [movTarget,  setMovTarget]  = useState(null);
+  const [histTarget, setHistTarget] = useState(null);
+  const [delTarget,  setDelTarget]  = useState(null);
 
   useEffect(() => {
     estoqueService.list()
       .then(setItems).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  // Filtra pela aba ativa
+  const itemsFiltrados = items.filter((i) => (i.tipo ?? "insumo") === tipoAtivo);
+  const baixoFiltrado  = itemsFiltrados.filter(isBaixo);
+
   const onSaveInsumo = (op, data) => {
     if (op === "create") setItems((p) => [...p, data].sort((a, b) => a.nome.localeCompare(b.nome)));
     if (op === "update") setItems((p) => p.map((i) => i.id === data.id ? data : i).sort((a, b) => a.nome.localeCompare(b.nome)));
   };
-  const onMovDone = (updated) => setItems((p) => p.map((i) => i.id === updated.id ? updated : i));
-  const onDelete  = (id)      => setItems((p) => p.filter((i) => i.id !== id));
+  const onMovDone    = (updated) => setItems((p) => p.map((i) => i.id === updated.id ? updated : i));
+  const onDelete     = (id)      => setItems((p) => p.filter((i) => i.id !== id));
+  const openEntrada  = (item)    => { setMovTarget(item); setMovTipo("entrada"); };
+  const openSaida    = (item)    => { setMovTarget(item); setMovTipo("saida"); };
+  const closeMovModal = ()       => { setMovTarget(null); setMovTipo(null); };
 
-  const baixo = items.filter(isBaixo);
+  const meta = TIPO_META[tipoAtivo];
 
+  // ─── Estilos reutilizáveis ──────────────────────────────────────────────────
   const thStyle = {
     padding: "10px 14px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
     color: theme.txtSecondary(isDark), textAlign: "left",
@@ -321,139 +420,181 @@ export default function EstoqueSection() {
     borderTop: `1px solid ${theme.border(isDark)}`, verticalAlign: "middle",
   };
   const btnGhost = {
-    padding: "4px 9px", borderRadius: 6, border: `1px solid ${theme.border(isDark)}`,
-    background: "transparent", cursor: "pointer", fontSize: 11, fontWeight: 600,
+    padding: "5px 9px", borderRadius: 6, border: `1px solid ${theme.border(isDark)}`,
+    background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1,
   };
+  const toggleBtn = (active) => ({
+    padding: "5px 13px", fontSize: 12, fontWeight: 700, borderRadius: 7,
+    border: `1px solid ${active ? theme.accent : theme.border(isDark)}`,
+    background: active ? theme.accent : "transparent",
+    color: active ? "#fff" : theme.txtSecondary(isDark),
+    cursor: "pointer",
+  });
+  const tipoBtn = (t) => ({
+    padding: "7px 16px", fontSize: 13, fontWeight: 700, borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+    border: `1px solid ${tipoAtivo === t ? theme.accent : theme.border(isDark)}`,
+    background: tipoAtivo === t ? theme.accentDim : "transparent",
+    color: tipoAtivo === t ? theme.accent : theme.txtSecondary(isDark),
+    cursor: "pointer",
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
       {/* Modais */}
-      {showCreate  && <InsumoModal target={null}      categorias={categorias} onSave={onSaveInsumo} onClose={() => setShowCreate(false)} />}
-      {editTarget  && <InsumoModal target={editTarget} categorias={categorias} onSave={onSaveInsumo} onClose={() => setEditTarget(null)} />}
-      {movTarget   && !histTarget && (
-        <MovModal
-          item={movTarget}
-          onDone={onMovDone}
-          onHistorico={() => setHistTarget(movTarget)}
-          onClose={() => setMovTarget(null)}
-        />
+      {showCreate && (
+        <InsumoModal target={null} categorias={categorias} tipoItem={tipoAtivo} onSave={onSaveInsumo} onClose={() => setShowCreate(false)} />
       )}
-      {histTarget  && <HistoricoModal item={histTarget} onClose={() => setHistTarget(null)} />}
-      {delTarget   && <ConfirmDeleteModal item={delTarget} onConfirm={onDelete} onClose={() => setDelTarget(null)} />}
+      {editTarget && (
+        <InsumoModal target={editTarget} categorias={categorias} tipoItem={tipoAtivo} onSave={onSaveInsumo} onClose={() => setEditTarget(null)} />
+      )}
+      {movTarget && !histTarget && (
+        <MovModal item={movTarget} initialTipo={movTipo} onDone={onMovDone} onHistorico={() => setHistTarget(movTarget)} onClose={closeMovModal} />
+      )}
+      {histTarget && <HistoricoModal item={histTarget} onClose={() => setHistTarget(null)} />}
+      {delTarget  && <ConfirmDeleteModal item={delTarget} onConfirm={onDelete} onClose={() => setDelTarget(null)} />}
 
-      {/* Cabeçalho da seção */}
+      {/* Cabeçalho: título + toggle lista/dashboard */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: theme.txtPrimary(isDark) }}>Estoque de Materiais</div>
           <div style={{ fontSize: 12, color: theme.txtMuted(isDark), marginTop: 2 }}>Insumos, quantidades e movimentações</div>
         </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button onClick={() => setView("lista")}     style={toggleBtn(view === "lista")}>📋 Lista</button>
+          <button onClick={() => setView("dashboard")} style={toggleBtn(view === "dashboard")}>📊 Dashboard</button>
+        </div>
+      </div>
+
+      {/* Sub-abas: Insumos | Matéria-Prima + botão Novo */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {Object.entries(TIPO_META).map(([t, m]) => {
+            const alertCount = items.filter((i) => (i.tipo ?? "insumo") === t && isBaixo(i)).length;
+            return (
+              <button key={t} onClick={() => setTipoAtivo(t)} style={tipoBtn(t)}>
+                <span>{m.emoji} {m.label}</span>
+                {alertCount > 0 && (
+                  <span style={{ background: theme.red, color: "#fff", borderRadius: 99, padding: "1px 6px", fontSize: 10, fontWeight: 800 }}>{alertCount}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
         {canEdit && (
           <button
             onClick={() => setShowCreate(true)}
-            title="Novo insumo"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-              border: `1px solid ${theme.accent}`, background: `${theme.accent}15`,
-              color: theme.accent, cursor: "pointer", fontSize: 22, lineHeight: 1, fontWeight: 700,
-            }}>
-            +
+            style={{ padding: "7px 14px", fontSize: 12, fontWeight: 700, borderRadius: 8, border: `1px solid ${theme.accent}`, background: `${theme.accent}15`, color: theme.accent, cursor: "pointer", flexShrink: 0 }}>
+            + Novo {meta.labelSingular}
           </button>
         )}
       </div>
 
-      {/* Banner de alertas */}
-      {baixo.length > 0 && (
+      {/* Banner alertas (view lista) */}
+      {view === "lista" && baixoFiltrado.length > 0 && (
         <div style={{ padding: "9px 14px", borderRadius: 8, background: theme.redBg(isDark), border: `1px solid ${theme.red}44`, display: "flex", alignItems: "center", gap: 8 }}>
           <span>⚠</span>
           <span style={{ fontSize: 12, fontWeight: 700, color: theme.red }}>
-            {baixo.length} insumo{baixo.length > 1 ? "s" : ""} abaixo do mínimo:{" "}
-            <span style={{ fontWeight: 500 }}>{baixo.map((i) => i.nome).join(", ")}</span>
+            {baixoFiltrado.length} item{baixoFiltrado.length > 1 ? "s" : ""} abaixo do mínimo:{" "}
+            <span style={{ fontWeight: 500 }}>{baixoFiltrado.map((i) => i.nome).join(", ")}</span>
           </span>
         </div>
       )}
 
-      {/* Tabela */}
-      <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.border(isDark)}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Nome</th>
-                <th style={thStyle}>Und.</th>
-                <th style={thStyle}>Atual</th>
-                <th style={thStyle}>Mínimo</th>
-                <th style={thStyle}>Status</th>
-                <th style={{ ...thStyle, width: 36 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>Carregando…</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>Nenhum insumo cadastrado. Clique em + para adicionar.</td></tr>
-              ) : (
-                items.map((item) => {
-                  const alerta = isBaixo(item);
-                  return (
-                    <tr key={item.id}
-                      style={{ background: alerta ? theme.redBg(isDark) : "transparent" }}
-                      onMouseEnter={(e) => { if (!alerta) e.currentTarget.style.background = theme.bgHover(isDark); }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = alerta ? theme.redBg(isDark) : "transparent"; }}
-                    >
-                      <td style={{ ...tdStyle, fontWeight: 600, color: theme.txtPrimary(isDark) }}>
-                        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
-                          {item.categoria && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: theme.accent, background: `${theme.accent}15`, padding: "1px 6px", borderRadius: 99, whiteSpace: "nowrap", flexShrink: 0 }}>
-                              {item.categoria}
-                            </span>
-                          )}
-                          <span>{item.nome}</span>
-                        </div>
-                        {item.observacao && <div style={{ fontSize: 11, color: theme.txtMuted(isDark), fontWeight: 400, marginTop: 1 }}>{item.observacao}</div>}
-                      </td>
-                      <td style={{ ...tdStyle, fontSize: 11, color: theme.txtMuted(isDark) }}>{item.unidade}</td>
-                      <td style={{ ...tdStyle, fontWeight: 700, color: alerta ? theme.red : theme.txtPrimary(isDark), fontFamily: "monospace" }}>
-                        {alerta && "⚠ "}{fmt(item.qtd_atual)}
-                      </td>
-                      <td style={{ ...tdStyle, fontFamily: "monospace" }}>{fmt(item.qtd_minima)}</td>
-                      <td style={tdStyle}>
-                        {alerta
-                          ? <span style={{ fontSize: 11, fontWeight: 700, color: theme.red, background: theme.redBg(isDark), border: `1px solid ${theme.red}44`, borderRadius: 5, padding: "2px 7px" }}>⚠ Baixo</span>
-                          : <span style={{ fontSize: 11, fontWeight: 700, color: theme.green, background: theme.greenBg(isDark), border: `1px solid ${theme.green}44`, borderRadius: 5, padding: "2px 7px" }}>✓ OK</span>
-                        }
-                      </td>
-                      <td style={tdStyle}>
-                        <div style={{ display: "flex", gap: 5 }}>
-                          {canEdit  && <button onClick={() => setMovTarget(item)}   title="Registrar movimentação" style={{ ...btnGhost, color: theme.accent }}>+ Mov.</button>}
-                          {canEdit  && <button onClick={() => setEditTarget(item)}  title="Editar insumo"          style={{ ...btnGhost, color: theme.blue }}>✏</button>}
-                          {canDelete && <button onClick={() => setDelTarget(item)}  title="Excluir insumo"         style={{ ...btnGhost, color: theme.red }}>🗑</button>}
-                          <button onClick={() => setHistTarget(item)} title="Ver histórico" style={{ ...btnGhost, color: theme.txtSecondary(isDark) }}>📋</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* View: Dashboard */}
+      {view === "dashboard" && (
+        <DashboardView items={itemsFiltrados} canEdit={canEdit} onEntrada={openEntrada} onSaida={openSaida} isDark={isDark} />
+      )}
 
-        {/* Rodapé da tabela */}
-        {canEdit && (
-          <div style={{ padding: "10px 14px", borderTop: `1px solid ${theme.border(isDark)}`, display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setShowCreate(true)} style={{ fontSize: 12, fontWeight: 600, color: theme.accent, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-              + Novo insumo
-            </button>
-            {items.length > 0 && (
-              <span style={{ fontSize: 11, color: theme.txtMuted(isDark), marginLeft: "auto" }}>
-                {items.length} insumo{items.length !== 1 ? "s" : ""}{baixo.length > 0 ? ` · ${baixo.length} abaixo do mínimo` : ""}
-              </span>
-            )}
+      {/* View: Lista */}
+      {view === "lista" && (
+        <div style={{ background: theme.bgCard(isDark), border: `1px solid ${theme.border(isDark)}`, borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Nome</th>
+                  <th style={thStyle}>Und.</th>
+                  <th style={thStyle}>Atual</th>
+                  <th style={thStyle}>Mínimo</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={{ ...thStyle, width: 36 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>Carregando…</td></tr>
+                ) : itemsFiltrados.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: 28, textAlign: "center", color: theme.txtMuted(isDark), fontSize: 13 }}>
+                    Nenhum item cadastrado. Clique em &quot;+ Novo {meta.labelSingular}&quot; para adicionar.
+                  </td></tr>
+                ) : (
+                  itemsFiltrados.map((item) => {
+                    const alerta = isBaixo(item);
+                    return (
+                      <tr key={item.id}
+                        style={{ background: alerta ? theme.redBg(isDark) : "transparent" }}
+                        onMouseEnter={(e) => { if (!alerta) e.currentTarget.style.background = theme.bgHover(isDark); }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = alerta ? theme.redBg(isDark) : "transparent"; }}
+                      >
+                        <td style={{ ...tdStyle, fontWeight: 600, color: theme.txtPrimary(isDark) }}>
+                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
+                            {item.categoria && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: theme.accent, background: `${theme.accent}15`, padding: "1px 6px", borderRadius: 99, whiteSpace: "nowrap", flexShrink: 0 }}>
+                                {item.categoria}
+                              </span>
+                            )}
+                            <span>{item.nome}</span>
+                          </div>
+                          {item.observacao && <div style={{ fontSize: 11, color: theme.txtMuted(isDark), fontWeight: 400, marginTop: 1 }}>{item.observacao}</div>}
+                        </td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: theme.txtMuted(isDark) }}>{item.unidade}</td>
+                        <td style={{ ...tdStyle, fontWeight: 700, color: alerta ? theme.red : theme.txtPrimary(isDark), fontFamily: "monospace" }}>
+                          {alerta && "⚠ "}{fmt(item.qtd_atual)}
+                        </td>
+                        <td style={{ ...tdStyle, fontFamily: "monospace" }}>{fmt(item.qtd_minima)}</td>
+                        <td style={tdStyle}>
+                          {alerta
+                            ? <span style={{ fontSize: 11, fontWeight: 700, color: theme.red,   background: theme.redBg(isDark),   border: `1px solid ${theme.red}44`,   borderRadius: 5, padding: "2px 7px" }}>⚠ Baixo</span>
+                            : <span style={{ fontSize: 11, fontWeight: 700, color: theme.green, background: theme.greenBg(isDark), border: `1px solid ${theme.green}44`, borderRadius: 5, padding: "2px 7px" }}>✓ OK</span>
+                          }
+                        </td>
+                        <td style={tdStyle}>
+                          <div style={{ display: "flex", gap: 5 }}>
+                            {canEdit && (
+                              <>
+                                <button onClick={() => openEntrada(item)} title="Registrar entrada" style={{ ...btnGhost, color: theme.green }}>▲</button>
+                                <button onClick={() => openSaida(item)}   title="Registrar saída"   style={{ ...btnGhost, color: theme.red   }}>▼</button>
+                              </>
+                            )}
+                            {canEdit   && <button onClick={() => setEditTarget(item)} title="Editar"         style={{ ...btnGhost, color: theme.blue }}>✏</button>}
+                            {canDelete && <button onClick={() => setDelTarget(item)}  title="Excluir"        style={{ ...btnGhost, color: theme.red  }}>🗑</button>}
+                            <button onClick={() => setHistTarget(item)} title="Ver histórico" style={{ ...btnGhost, color: theme.txtSecondary(isDark) }}>📋</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {canEdit && (
+            <div style={{ padding: "10px 14px", borderTop: `1px solid ${theme.border(isDark)}`, display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={() => setShowCreate(true)} style={{ fontSize: 12, fontWeight: 600, color: theme.accent, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                + Novo {meta.labelSingular}
+              </button>
+              {itemsFiltrados.length > 0 && (
+                <span style={{ fontSize: 11, color: theme.txtMuted(isDark), marginLeft: "auto" }}>
+                  {itemsFiltrados.length} item{itemsFiltrados.length !== 1 ? "s" : ""}
+                  {baixoFiltrado.length > 0 ? ` · ${baixoFiltrado.length} abaixo do mínimo` : ""}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

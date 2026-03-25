@@ -8,26 +8,33 @@ import theme from "../../theme";
 import TrashButton from "../../components/ui/TrashButton";
 import { joinArr, getRowItens, EstoqueBadge } from "./servicos.utils";
 
-export function HistoricoSection({ tipo, compRows, onReativar, onExcluir }) {
+export function HistoricoSection({ tipo, compRows, onReativar, onExcluir, servRows: servRowsProp, onReativarServ, onExcluirServ }) {
   const isDark = useDark();
-  const [servRows, setServRows] = useLocalStorage("servicos_lista", []);
+  // Para serviços: usa props (API) se disponível, senão fallback para localStorage
+  const [servRowsLocal, setServRowsLocal] = useLocalStorage("servicos_lista", []);
+  const servRows = servRowsProp ?? servRowsLocal;
 
-  // Para compras: usa props (API). Para serviços: usa localStorage.
+  // Para compras: usa props (API). Para serviços: usa props ou localStorage.
   const hist = tipo === "servicos"
     ? servRows.filter((r) => r.status === "Recebido")
     : (Array.isArray(compRows) ? compRows : []).filter((r) => r.status === "Recebido");
 
   const reativar = (id) => {
     if (tipo === "servicos") {
-      setServRows((p) => p.map((r) => r.id === id ? { ...r, status: "Enviado", receivedAt: undefined } : r));
+      if (onReativarServ) onReativarServ(id);
+      else setServRowsLocal((p) => p.map((r) => r.id === id ? { ...r, status: "Enviado", receivedAt: undefined } : r));
     } else if (onReativar) {
       onReativar(id);
     }
   };
 
   const excluir = (id) => {
-    if (tipo === "servicos") setServRows((p) => p.filter((r) => r.id !== id));
-    else if (onExcluir)      onExcluir(id);
+    if (tipo === "servicos") {
+      if (onExcluirServ) onExcluirServ(id);
+      else setServRowsLocal((p) => p.filter((r) => r.id !== id));
+    } else if (onExcluir) {
+      onExcluir(id);
+    }
   };
 
   const thStyle = {
