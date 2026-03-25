@@ -126,7 +126,7 @@ function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onDragStart
             </button>
             {menuCor && (
               <div style={{
-                position: "absolute", top: "100%", right: 0, zIndex: 100,
+                position: "absolute", top: "100%", right: 0, zIndex: 9999,
                 background: isDark ? "#1e2433" : "#fff",
                 border: `1px solid ${theme.border(isDark)}`,
                 borderRadius: 10, padding: 10, boxShadow: "0 4px 20px rgba(0,0,0,.3)",
@@ -207,7 +207,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
 
   return (
     <div
-      style={{ width: 272, flexShrink: 0, display: "flex", flexDirection: "column", borderRadius: 12, overflow: "hidden" }}
+      style={{ width: 272, flexShrink: 0, display: "flex", flexDirection: "column", borderRadius: 12 }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => { setDragOver(false); onDrop(e, coluna.id); }}
@@ -256,10 +256,10 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
             </button>
             {menuOpen && (
               <div style={{
-                position: "absolute", top: "100%", right: 0, zIndex: 100,
+                position: "absolute", top: "100%", right: 0, zIndex: 9999,
                 background: isDark ? "#1e2433" : "#fff",
                 border: `1px solid ${theme.border(isDark)}`,
-                borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,.3)",
+                borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.4)",
                 minWidth: 160, overflow: "hidden",
               }}>
                 <button
