@@ -233,9 +233,6 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
         flex: 1, display: "flex", alignItems: "center", gap: 6,
       }}>
         {coluna.nome}
-        {colCount > 0 && (
-          <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.75 }}>({colCount})</span>
-        )}
       </span>
     </div>
   );
@@ -274,9 +271,6 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
               title="Duplo clique para renomear"
             >
               {coluna.nome}
-              <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7, marginLeft: 6 }}>
-                {colCount > 0 ? `(${colCount})` : ""}
-              </span>
             </span>
           )}
 
