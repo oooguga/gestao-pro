@@ -233,6 +233,15 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
       }}>
         {coluna.nome}
       </span>
+      {(coluna.tarefas?.length ?? 0) > 0 && (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: "#fff",
+          background: "rgba(0,0,0,.35)", borderRadius: 10,
+          padding: "2px 6px", minWidth: 20, textAlign: "center",
+        }}>
+          {coluna.tarefas.length}
+        </span>
+      )}
     </div>
   );
 
