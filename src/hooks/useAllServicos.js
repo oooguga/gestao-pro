@@ -1,14 +1,18 @@
 // ─── useAllServicos ────────────────────────────────────────────────────────────
-// Hook compartilhado que lê todos os serviços e compras da lista unificada.
-// Usado por Dashboard e outros componentes que precisam de visão geral dos dados.
-import { useLocalStorage } from "./useLocalStorage";
+// Hook compartilhado que busca todos os serviços e compras via API.
+// Substitui a versão antiga que lia do localStorage (agora obsoleto).
+import { useState, useEffect } from "react";
+import { tercService }    from "../services/terc";
+import { comprasService } from "../services/compras";
 
 export function useAllServicos() {
-  const [servicos] = useLocalStorage("servicos_lista", []);
-  const [compras]  = useLocalStorage("compras_lista",  []);
+  const [todosServicos, setTodosServicos] = useState([]);
+  const [todasCompras,  setTodasCompras]  = useState([]);
 
-  return {
-    todosServicos: servicos,
-    todasCompras:  compras,
-  };
+  useEffect(() => {
+    tercService.list()   .then(setTodosServicos).catch(() => {});
+    comprasService.list().then(setTodasCompras) .catch(() => {});
+  }, []);
+
+  return { todosServicos, todasCompras, setTodosServicos, setTodasCompras };
 }

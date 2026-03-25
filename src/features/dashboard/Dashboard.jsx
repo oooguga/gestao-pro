@@ -7,7 +7,8 @@ import { isOverdue } from "../../utils";
 import ProgressBar from "../../components/ui/ProgressBar";
 import SegmentedBar from "../../components/ui/SegmentedBar";
 import StepNav from "../../components/ui/StepNav";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { comprasService } from "../../services/compras";
+import { tercService }    from "../../services/terc";
 
 // ─── Card de KPI ──────────────────────────────────────────────────────────────
 function KpiCard({ label, value, color, sub, extra }) {
@@ -25,15 +26,17 @@ function KpiCard({ label, value, color, sub, extra }) {
 // ─── Mini-tabela compacta de compras do pedido ────────────────────────────────
 function ComprasDosPedido({ orderId, todasCompras }) {
   const isDark = useDark();
+  const [localStatus, setLocalStatus] = useState({}); // { [id]: status } para atualização otimista
 
-  // Atualização de status inline
-  const [compras, setCompras] = useLocalStorage("compras_lista", []);
-  const updateStatus = (id, v) => setCompras((p) => p.map((r) => r.id === id ? { ...r, status: v } : r));
+  const updateStatus = async (id, v) => {
+    setLocalStatus((p) => ({ ...p, [id]: v }));
+    try { await comprasService.update(id, { status: v }); } catch {}
+  };
 
   const rows = todasCompras.filter((c) => {
     const pedidos = Array.isArray(c.pedidos) ? c.pedidos : [c.pedido].filter(Boolean);
     return pedidos.includes(orderId);
-  });
+  }).map((r) => localStatus[r.id] ? { ...r, status: localStatus[r.id] } : r);
 
   if (!rows.length) {
     return <p style={{ margin: 0, fontSize: 12, color: theme.txtMuted(isDark) }}>Nenhuma compra registrada para este pedido.</p>;
@@ -81,17 +84,17 @@ function ComprasDosPedido({ orderId, todasCompras }) {
 // ─── Mini-tabela compacta de serviços do pedido ───────────────────────────────
 function ServicosDosPedido({ orderId, todosServicos }) {
   const isDark = useDark();
+  const [localStatus, setLocalStatus] = useState({}); // atualização otimista
 
-  // Atualização de status inline — lista unificada (1 hook, sem violação de Rules of Hooks)
-  const [, setServicos] = useLocalStorage("servicos_lista", []);
+  const updateStatus = async (id, v) => {
+    setLocalStatus((p) => ({ ...p, [id]: v }));
+    try { await tercService.update(id, { status: v }); } catch {}
+  };
 
   const rows = todosServicos.filter((s) => {
     const pedidos = Array.isArray(s.pedidos) ? s.pedidos : [s.pedido].filter(Boolean);
     return pedidos.includes(orderId);
-  });
-
-  const updateStatus = (id, v) =>
-    setServicos((p) => p.map((r) => r.id === id ? { ...r, status: v } : r));
+  }).map((r) => localStatus[r.id] ? { ...r, status: localStatus[r.id] } : r);
 
   if (!rows.length) {
     return <p style={{ margin: 0, fontSize: 12, color: theme.txtMuted(isDark) }}>Nenhum serviço em aberto para este pedido.</p>;
