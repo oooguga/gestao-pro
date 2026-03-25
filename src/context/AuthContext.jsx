@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch, setAccessToken, setLogoutCallback } from '../services/api';
 
+// ─── MODO VALIDAÇÃO ───────────────────────────────────────────────────────────
+// Defina como true para pular o login e acessar direto como admin.
+// Volte para false quando quiser reativar a autenticação.
+const SKIP_AUTH = true;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
@@ -34,9 +40,13 @@ export function AuthProvider({ children }) {
   }, [logout]);
 
   // ─── Refresh silencioso na inicialização ──────────────────────────────────
-  // Verifica se há um cookie refreshToken válido para restaurar a sessão
-  // sem pedir login novamente ao usuário.
   useEffect(() => {
+    if (SKIP_AUTH) {
+      setUser({ id: 'dev', role: 'admin' });
+      setIsAuthenticated(true);
+      setIsInitializing(false);
+      return;
+    }
     fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
