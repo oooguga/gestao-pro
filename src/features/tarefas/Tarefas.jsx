@@ -202,8 +202,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
     setEditingName(false);
   };
 
-  const colCount = coluna.tarefas?.length ?? 0;
-  const hdrTxt   = "#fff";
+  const hdrTxt = "#fff";
 
   // ── Modo recolhido ──────────────────────────────────────────────────────────
   if (collapsed) return (
