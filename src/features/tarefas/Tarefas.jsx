@@ -607,11 +607,26 @@ export default function Tarefas() {
   };
 
   const handleToggleTarefa = async (tarefa) => {
-    const updated = await tarefasService.updateTarefa(tarefa.id, { concluido: !tarefa.concluido });
+    const novoConcluido = !tarefa.concluido;
+    // Atualiza UI imediatamente (otimista)
     setColunas((p) => p.map((c) => ({
       ...c,
-      tarefas: (c.tarefas ?? []).map((t) => t.id === updated.id ? updated : t),
+      tarefas: (c.tarefas ?? []).map((t) =>
+        t.id === tarefa.id ? { ...t, concluido: novoConcluido } : t
+      ),
     })));
+    // Persiste em background
+    try {
+      await tarefasService.updateTarefa(tarefa.id, { concluido: novoConcluido });
+    } catch {
+      // Reverte se falhar
+      setColunas((p) => p.map((c) => ({
+        ...c,
+        tarefas: (c.tarefas ?? []).map((t) =>
+          t.id === tarefa.id ? { ...t, concluido: tarefa.concluido } : t
+        ),
+      })));
+    }
   };
 
   const handleDeleteTarefa = async (tarefa) => {
