@@ -51,23 +51,25 @@ const IconPlus = ({ size = 14, color }) => (
 );
 
 // ─── Cartão ───────────────────────────────────────────────────────────────────
-function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onDragStart }) {
+function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onAlerta, onArquivar, onDragStart }) {
   const isDark = useDark();
-  const [menuCor, setMenuCor] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showCores, setShowCores] = useState(false);
   const [hovered, setHovered] = useState(false);
   const menuRef = useRef(null);
 
-  // Fecha menu ao clicar fora
   useEffect(() => {
-    if (!menuCor) return;
-    const fn = (e) => { if (!menuRef.current?.contains(e.target)) setMenuCor(false); };
+    if (!menuOpen) { setShowCores(false); return; }
+    const fn = (e) => { if (!menuRef.current?.contains(e.target)) { setMenuOpen(false); setShowCores(false); } };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
-  }, [menuCor]);
+  }, [menuOpen]);
 
   const cardBg  = isDark ? "#1e2433" : "#ffffff";
   const txtMain = isDark ? "#e2e8f0" : "#1e293b";
   const txtMut  = isDark ? "#64748b" : "#94a3b8";
+  const menuBg  = isDark ? "#282e3e" : "#ffffff";
+  const menuBorder = isDark ? "#3a4258" : "#e5e7eb";
 
   return (
     <div
@@ -76,87 +78,122 @@ function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onDragStart
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: cardBg,
-        borderRadius: 8,
-        cursor: "grab",
-        position: "relative",
+        background: cardBg, borderRadius: 8, cursor: "grab", position: "relative",
         overflow: "visible",
         boxShadow: hovered ? "0 2px 8px rgba(0,0,0,.25)" : "0 1px 3px rgba(0,0,0,.15)",
         transition: "box-shadow .15s",
+        outline: tarefa.alerta ? "2px solid #f97316" : "none",
       }}
     >
       {/* Barra colorida no topo */}
-      {tarefa.cor && (
-        <div style={{ height: 5, background: tarefa.cor, borderRadius: "8px 8px 0 0" }} />
-      )}
+      {tarefa.cor && <div style={{ height: 5, background: tarefa.cor, borderRadius: "8px 8px 0 0" }} />}
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 10px 10px 10px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px" }}>
         {/* Check */}
-        <button
-          onClick={() => onToggle(tarefa)}
+        <button onClick={() => onToggle(tarefa)}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, marginTop: 1 }}
           title={tarefa.concluido ? "Marcar como pendente" : "Marcar como concluído"}
         >
-          {tarefa.concluido
-            ? <IconCheck color="#22c55e" />
-            : <IconCircle color={txtMut} />
-          }
+          {tarefa.concluido ? <IconCheck color="#22c55e" /> : <IconCircle color={txtMut} />}
         </button>
 
-        {/* Título */}
+        {/* Título + badge de alerta */}
         <span style={{
           flex: 1, fontSize: 13, color: txtMain, lineHeight: 1.4,
           textDecoration: tarefa.concluido ? "line-through" : "none",
-          opacity: tarefa.concluido ? 0.5 : 1,
-          wordBreak: "break-word",
+          opacity: tarefa.concluido ? 0.5 : 1, wordBreak: "break-word",
+          display: "flex", alignItems: "flex-start", gap: 4,
         }}>
+          {tarefa.alerta && (
+            <span title="Alerta ativo" style={{ fontSize: 13, flexShrink: 0 }}>🔔</span>
+          )}
           {tarefa.titulo}
         </span>
 
-        {/* Ações (visíveis ao hover) */}
-        <div style={{ display: "flex", gap: 2, opacity: hovered ? 1 : 0, transition: "opacity .15s", flexShrink: 0 }}>
-          {/* Cor */}
-          <div ref={menuRef} style={{ position: "relative" }}>
-            <button
-              onClick={() => setMenuCor((v) => !v)}
-              title="Cor do cartão"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 4, fontSize: 13 }}
-            >
-              🎨
-            </button>
-            {menuCor && (
-              <div style={{
-                position: "absolute", top: "100%", right: 0, zIndex: 9999,
-                background: isDark ? "#1e2433" : "#fff",
-                border: `1px solid ${theme.border(isDark)}`,
-                borderRadius: 10, padding: 10, boxShadow: "0 4px 20px rgba(0,0,0,.3)",
-                display: "grid", gridTemplateColumns: "repeat(5, 24px)", gap: 6, width: 160,
-              }}>
-                {CORES_CARTAO.map((c) => (
-                  <button
-                    key={c.label}
-                    onClick={() => { onCorChange(tarefa, c.value); setMenuCor(false); }}
-                    title={c.label}
-                    style={{
-                      width: 24, height: 24, borderRadius: "50%",
-                      background: c.value ?? (isDark ? "#2d3748" : "#e2e8f0"),
-                      border: tarefa.cor === c.value ? "2px solid #fff" : "1px solid rgba(255,255,255,.2)",
-                      cursor: "pointer", padding: 0,
-                      boxShadow: tarefa.cor === c.value ? "0 0 0 2px " + (c.value ?? "#888") : "none",
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          {/* Excluir */}
+        {/* Botão ··· */}
+        <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <button
-            onClick={() => onDelete(tarefa)}
-            title="Excluir cartão"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 4 }}
+            onClick={() => setMenuOpen(v => !v)}
+            style={{
+              background: "none", border: "none", cursor: "pointer", padding: "2px 4px",
+              borderRadius: 4, opacity: hovered || menuOpen ? 1 : 0, transition: "opacity .15s",
+              display: "flex", alignItems: "center",
+            }}
+            title="Ações"
           >
-            <IconTrash color="#ef4444" />
+            <IconDots color={txtMut} size={14} />
           </button>
+
+          {menuOpen && (
+            <div style={{
+              position: "absolute", top: "100%", right: 0, zIndex: 9999, minWidth: 180,
+              background: menuBg, border: `1px solid ${menuBorder}`,
+              borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+              overflow: "hidden",
+            }}>
+              {/* Alerta */}
+              <button onClick={() => { onAlerta(tarefa); setMenuOpen(false); }}
+                style={{ width: "100%", padding: "9px 14px", background: tarefa.alerta ? (isDark ? "#2d2010" : "#fff7ed") : "none",
+                  border: "none", cursor: "pointer", textAlign: "left", fontSize: 13,
+                  color: tarefa.alerta ? "#f97316" : (isDark ? "#cbd5e1" : "#374151"),
+                  display: "flex", alignItems: "center", gap: 8,
+                  borderBottom: `1px solid ${menuBorder}` }}
+              >
+                <span style={{ fontSize: 15 }}>🔔</span>
+                {tarefa.alerta ? "Remover alerta" : "Adicionar alerta"}
+              </button>
+
+              {/* Cor */}
+              <button onClick={() => setShowCores(v => !v)}
+                style={{ width: "100%", padding: "9px 14px", background: "none",
+                  border: "none", cursor: "pointer", textAlign: "left", fontSize: 13,
+                  color: isDark ? "#cbd5e1" : "#374151",
+                  display: "flex", alignItems: "center", gap: 8,
+                  borderBottom: `1px solid ${menuBorder}` }}
+              >
+                <span style={{ fontSize: 15 }}>🎨</span>
+                Alterar cor
+                <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.5 }}>{showCores ? "▲" : "▼"}</span>
+              </button>
+              {showCores && (
+                <div style={{ padding: "8px 12px", borderBottom: `1px solid ${menuBorder}`,
+                  display: "grid", gridTemplateColumns: "repeat(5, 26px)", gap: 6 }}>
+                  {CORES_CARTAO.map((c) => (
+                    <button key={c.label} onClick={() => { onCorChange(tarefa, c.value); setMenuOpen(false); }}
+                      title={c.label}
+                      style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        background: c.value ?? (isDark ? "#2d3748" : "#e2e8f0"),
+                        border: tarefa.cor === c.value ? "2px solid #fff" : "1px solid rgba(255,255,255,.2)",
+                        cursor: "pointer", padding: 0,
+                        boxShadow: tarefa.cor === c.value ? "0 0 0 2px " + (c.value ?? "#888") : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Arquivar */}
+              <button onClick={() => { onArquivar(tarefa); setMenuOpen(false); }}
+                style={{ width: "100%", padding: "9px 14px", background: "none",
+                  border: "none", cursor: "pointer", textAlign: "left", fontSize: 13,
+                  color: isDark ? "#cbd5e1" : "#374151",
+                  display: "flex", alignItems: "center", gap: 8,
+                  borderBottom: `1px solid ${menuBorder}` }}
+              >
+                <span style={{ fontSize: 15 }}>📦</span> Arquivar
+              </button>
+
+              {/* Excluir */}
+              <button onClick={() => { onDelete(tarefa); setMenuOpen(false); }}
+                style={{ width: "100%", padding: "9px 14px", background: "none",
+                  border: "none", cursor: "pointer", textAlign: "left", fontSize: 13,
+                  color: "#ef4444", display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <span style={{ fontSize: 15 }}>🗑</span> Excluir
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -165,6 +202,7 @@ function Cartao({ tarefa, colunaId, onToggle, onDelete, onCorChange, onDragStart
 
 // ─── Coluna ───────────────────────────────────────────────────────────────────
 function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTarefa,
+                  onAlertaTarefa, onArquivarTarefa,
                   onDeleteColuna, onRenameColuna, onCorColuna, onDragStart, onDrop }) {
   const isDark = useDark();
   const [addingCard, setAddingCard] = useState(false);
@@ -396,7 +434,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
         minHeight: 40, borderRadius: "0 0 12px 12px",
         outline: dragOver ? `2px dashed ${theme.accent}` : "none",
       }}>
-        {(coluna.tarefas ?? []).map((tarefa) => (
+        {(coluna.tarefas ?? []).filter(t => !t.arquivado).map((tarefa) => (
           <Cartao
             key={tarefa.id}
             tarefa={tarefa}
@@ -404,6 +442,8 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
             onToggle={onToggleTarefa}
             onDelete={onDeleteTarefa}
             onCorChange={onCorTarefa}
+            onAlerta={onAlertaTarefa}
+            onArquivar={onArquivarTarefa}
             onDragStart={onDragStart}
           />
         ))}
@@ -638,11 +678,38 @@ export default function Tarefas() {
   };
 
   const handleCorTarefa = async (tarefa, cor) => {
-    const updated = await tarefasService.updateTarefa(tarefa.id, { cor });
     setColunas((p) => p.map((c) => ({
-      ...c,
-      tarefas: (c.tarefas ?? []).map((t) => t.id === updated.id ? updated : t),
+      ...c, tarefas: (c.tarefas ?? []).map((t) => t.id === tarefa.id ? { ...t, cor } : t),
     })));
+    await tarefasService.updateTarefa(tarefa.id, { cor });
+  };
+
+  const handleAlertaTarefa = async (tarefa) => {
+    const novoAlerta = !tarefa.alerta;
+    setColunas((p) => p.map((c) => ({
+      ...c, tarefas: (c.tarefas ?? []).map((t) => t.id === tarefa.id ? { ...t, alerta: novoAlerta } : t),
+    })));
+    try {
+      await tarefasService.updateTarefa(tarefa.id, { alerta: novoAlerta });
+    } catch {
+      setColunas((p) => p.map((c) => ({
+        ...c, tarefas: (c.tarefas ?? []).map((t) => t.id === tarefa.id ? { ...t, alerta: tarefa.alerta } : t),
+      })));
+    }
+  };
+
+  const handleArquivarTarefa = async (tarefa) => {
+    // Otimista: remove da view imediatamente
+    setColunas((p) => p.map((c) => ({
+      ...c, tarefas: (c.tarefas ?? []).map((t) => t.id === tarefa.id ? { ...t, arquivado: true } : t),
+    })));
+    try {
+      await tarefasService.updateTarefa(tarefa.id, { arquivado: true });
+    } catch {
+      setColunas((p) => p.map((c) => ({
+        ...c, tarefas: (c.tarefas ?? []).map((t) => t.id === tarefa.id ? { ...t, arquivado: false } : t),
+      })));
+    }
   };
 
   // ─── Drag & Drop ────────────────────────────────────────────────────────────
@@ -708,6 +775,8 @@ export default function Tarefas() {
             onToggleTarefa={handleToggleTarefa}
             onDeleteTarefa={handleDeleteTarefa}
             onCorTarefa={handleCorTarefa}
+            onAlertaTarefa={handleAlertaTarefa}
+            onArquivarTarefa={handleArquivarTarefa}
             onDeleteColuna={handleDeleteColuna}
             onRenameColuna={handleRenameColuna}
             onCorColuna={handleCorColuna}
