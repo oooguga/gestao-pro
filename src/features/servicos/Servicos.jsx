@@ -1,21 +1,22 @@
 // ─── Servicos.jsx ─────────────────────────────────────────────────────────────
 // Componente raiz da tela "Serviços e Materiais".
 // Navega entre as seções: Serviços · Compras
-// Categorias são compartilhadas entre Compras e Estoque via localStorage.
+// Categorias são compartilhadas entre Compras e Estoque via API (/api/config).
 import { useState } from "react";
 import { useDark } from "../../context/DarkContext";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useConfig } from "../../hooks/useConfig";
 import theme from "../../theme";
 import { ServicoSection } from "./ServicosTable";
 import { ComprasSection }  from "./ComprasSection";
-import { DEFAULT_CATEGORIAS } from "./servicos.utils";
 
 export default function Servicos({ orders = [] }) {
   const isDark = useDark();
   const [activeSection, setActiveSection] = useState("servicos");
 
-  // Categorias compartilhadas — mesma chave usada pelo EstoqueSection
-  const [categorias, setCategorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
+  // Categorias vindas da API — acessíveis em qualquer dispositivo
+  const { config, updateConfig } = useConfig();
+  const categorias    = config.compras_categorias ?? [];
+  const setCategorias = (val) => updateConfig('compras_categorias', val);
 
   const sectionBtnStyle = (active) => ({
     padding: "8px 20px", fontSize: 13, fontWeight: 700, borderRadius: 8,

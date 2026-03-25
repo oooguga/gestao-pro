@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDark } from "../../context/DarkContext";
+import { useConfig } from "../../hooks/useConfig";
 import theme from "../../theme";
 import { OPCOES, MP_MADEIRA, MP_ELETRICA } from "../../constants";
 import { generateId } from "../../utils";
@@ -32,6 +33,11 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
   const isDark = useDark();
   const isEditing = !!editOrder;
 
+  // Variações de materiais carregadas da API — fallback para constantes locais
+  const { config } = useConfig();
+  const opMadeira  = config.mp_madeira  ?? MP_MADEIRA;
+  const opEletrica = config.mp_eletrica ?? MP_ELETRICA;
+
   const [form, setForm] = useState(
     editOrder
       ? { id: editOrder.id, cliente: editOrder.cliente, entrega: editOrder.entrega }
@@ -56,7 +62,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
           madeira_cfg: value,
           madeira_items:
             value === "Sim" && p.madeira_items.length === 0
-              ? [{ mp: MP_MADEIRA[0], larg: "", comp: "", qtd: 1 }]
+              ? [{ mp: opMadeira[0] ?? MP_MADEIRA[0], larg: "", comp: "", qtd: 1 }]
               : p.madeira_items,
         }
       )
@@ -66,7 +72,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
     setProducts((prev) =>
       prev.map((p, i) =>
         i === index
-          ? { ...p, madeira_items: [...p.madeira_items, { mp: MP_MADEIRA[0], larg: "", comp: "", qtd: 1 }] }
+          ? { ...p, madeira_items: [...p.madeira_items, { mp: opMadeira[0] ?? MP_MADEIRA[0], larg: "", comp: "", qtd: 1 }] }
           : p
       )
     );
@@ -97,7 +103,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
           eletrica_cfg: value,
           eletrica_items:
             value === "Sim" && p.eletrica_items.length === 0
-              ? [{ mp: MP_ELETRICA[0], item: "", qtd: 1, custom: "" }]
+              ? [{ mp: opEletrica[0] ?? MP_ELETRICA[0], item: "", qtd: 1, custom: "" }]
               : p.eletrica_items,
         }
       )
@@ -107,7 +113,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
     setProducts((prev) =>
       prev.map((p, i) =>
         i === index
-          ? { ...p, eletrica_items: [...p.eletrica_items, { mp: MP_ELETRICA[0], item: "", qtd: 1, custom: "" }] }
+          ? { ...p, eletrica_items: [...p.eletrica_items, { mp: opEletrica[0] ?? MP_ELETRICA[0], item: "", qtd: 1, custom: "" }] }
           : p
       )
     );
@@ -339,7 +345,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
                         <div style={{ gridColumn: "1 / -1" }}>
                           <FieldLabel>Matéria-prima</FieldLabel>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <DSel value={item.mp} options={MP_MADEIRA} onChange={(v) => updateMadeiraItem(i, mi, "mp", v)} />
+                            <DSel value={item.mp} options={opMadeira} onChange={(v) => updateMadeiraItem(i, mi, "mp", v)} />
                             <button
                               type="button"
                               title="Adicionar nova opção"
@@ -383,7 +389,7 @@ export default function NovoPedido({ onSave, editOrder, onCancelEdit }) {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
                         <div style={{ gridColumn: item.mp === "Personalizado" ? "1 / 2" : "1 / -1" }}>
                           <FieldLabel>Matéria-prima</FieldLabel>
-                          <DSel value={item.mp} options={MP_ELETRICA} onChange={(v) => updateEletricaItem(i, ei, "mp", v)} />
+                          <DSel value={item.mp} options={opEletrica} onChange={(v) => updateEletricaItem(i, ei, "mp", v)} />
                         </div>
                         {item.mp === "Personalizado" && (
                           <div><FieldLabel>Descrição</FieldLabel><DInput value={item.custom} onChange={(e) => updateEletricaItem(i, ei, "custom", e.target.value)} placeholder="Descreva o item" /></div>

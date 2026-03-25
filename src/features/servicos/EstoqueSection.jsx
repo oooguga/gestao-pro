@@ -1,15 +1,14 @@
 // ─── EstoqueSection.jsx ───────────────────────────────────────────────────────
 // Controle de insumos e movimentações de estoque.
 // Duas sub-abas: 🔩 Insumos (lixas, parafusos) | 🪵 Matéria-Prima (chapas, tubos)
-// Categorias compartilhadas com Compras via localStorage("compras_categorias").
+// Categorias compartilhadas com Compras via API (/api/config).
 import { useState, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
 import { useAuth } from "../../context/AuthContext";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useConfig } from "../../hooks/useConfig";
 import theme from "../../theme";
 import { estoqueService } from "../../services/estoque";
 import Modal from "../../components/ui/Modal";
-import { DEFAULT_CATEGORIAS } from "./servicos.utils";
 
 const UNIDADES  = ["unid", "kg", "m", "m²", "L", "par", "rolo", "cx"];
 const EMPTY_FORM = { nome: "", unidade: "kg", qtd_atual: "", qtd_minima: "", categoria: "", observacao: "" };
@@ -370,7 +369,8 @@ function ConfirmDeleteModal({ item, onConfirm, onClose }) {
 export default function EstoqueSection() {
   const isDark = useDark();
   const { user } = useAuth();
-  const [categorias] = useLocalStorage("compras_categorias", DEFAULT_CATEGORIAS);
+  const { config } = useConfig();
+  const categorias = config.compras_categorias ?? [];
 
   const canEdit   = user?.role === "admin" || user?.role === "gerente";
   const canDelete = user?.role === "admin";

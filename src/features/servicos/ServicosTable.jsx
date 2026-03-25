@@ -4,7 +4,7 @@
 // Estado de rows levantado para ServicoSection → API via tercService.
 import { useState, useMemo, useEffect } from "react";
 import { useDark } from "../../context/DarkContext";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useConfig } from "../../hooks/useConfig";
 import theme from "../../theme";
 import { today } from "../../utils";
 import StepNav from "../../components/ui/StepNav";
@@ -166,10 +166,16 @@ function ServicosTable({ orders, fornecedores, sheetsUrl, rows, addRow, deleteRo
 // Estado de rows gerenciado aqui via tercService (API).
 export function ServicoSection({ orders }) {
   const isDark = useDark();
-  const [activeTab, setActiveTab]       = useState("servicos");
-  const [fornecedores, setFornecedores] = useLocalStorage("config_fornecedores_servicos", DEFAULT_FORNECEDORES);
-  const [sheetsUrl, setSheetsUrl]       = useLocalStorage("config_sheets_url", DEFAULT_SHEETS_URL);
-  const [gasUrl, setGasUrl]             = useLocalStorage("config_gas_url", "");
+  const [activeTab, setActiveTab] = useState("servicos");
+
+  // Configurações vindas da API — acessíveis em qualquer dispositivo
+  const { config, updateConfig } = useConfig();
+  const fornecedores    = config.config_fornecedores_servicos ?? DEFAULT_FORNECEDORES;
+  const sheetsUrl       = config.config_sheets_url ?? DEFAULT_SHEETS_URL;
+  const gasUrl          = config.config_gas_url ?? "";
+  const setFornecedores = (val) => updateConfig('config_fornecedores_servicos', val);
+  const setSheetsUrl    = (val) => updateConfig('config_sheets_url', val);
+  const setGasUrl       = (val) => updateConfig('config_gas_url', val);
 
   // ─── Estado de rows via API ─────────────────────────────────────────────────
   const [rows, setRows]     = useState([]);
