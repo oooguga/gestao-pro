@@ -209,10 +209,11 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
   if (collapsed) return (
     <div
       style={{
-        width: 44, flexShrink: 0, borderRadius: 12,
+        flex: "0 0 44px", width: 44, borderRadius: 12,
         background: coluna.cor ?? "#2d4a2d",
         display: "flex", flexDirection: "column", alignItems: "center",
         padding: "10px 0", gap: 8, cursor: "pointer", userSelect: "none",
+        alignSelf: "flex-start",
       }}
       title={`Expandir "${coluna.nome}"`}
     >
@@ -241,7 +242,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
 
   return (
     <div
-      style={{ width: 272, flexShrink: 0, display: "flex", flexDirection: "column", borderRadius: 12 }}
+      style={{ flex: "1 1 240px", minWidth: 200, display: "flex", flexDirection: "column", borderRadius: 12 }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => { setDragOver(false); onDrop(e, coluna.id); }}
@@ -492,7 +493,7 @@ function NovaColuna({ onConfirm }) {
     <button
       onClick={() => setOpen(true)}
       style={{
-        width: 272, flexShrink: 0, padding: "12px 16px", borderRadius: 12,
+        flex: "1 1 240px", minWidth: 200, padding: "12px 16px", borderRadius: 12,
         border: `2px dashed ${isDark ? "#334155" : "#cbd5e1"}`,
         background: "transparent", cursor: "pointer",
         color: isDark ? "#64748b" : "#94a3b8", fontSize: 14, fontWeight: 600,
@@ -506,7 +507,7 @@ function NovaColuna({ onConfirm }) {
 
   return (
     <div style={{
-      width: 272, flexShrink: 0, borderRadius: 12,
+      flex: "1 1 240px", minWidth: 200, borderRadius: 12,
       background: isDark ? "#161c2e" : "#f1f5f9",
       padding: 12, display: "flex", flexDirection: "column", gap: 10,
       alignSelf: "flex-start",
@@ -678,13 +679,9 @@ export default function Tarefas() {
         Tarefas
       </h2>
 
-      {/* Board com scroll horizontal */}
+      {/* Board responsivo — sem scroll horizontal */}
       <div style={{
-        display: "flex", gap: 12, alignItems: "flex-start",
-        overflowX: "auto", paddingBottom: 16,
-        // Scroll suave
-        scrollbarWidth: "thin",
-        scrollbarColor: `${theme.border(isDark)} transparent`,
+        display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start",
       }}>
         {colunas.map((coluna) => (
           <Coluna
