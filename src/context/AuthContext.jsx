@@ -4,7 +4,7 @@ import { apiFetch, setAccessToken, setLogoutCallback } from '../services/api';
 // ─── MODO VALIDAÇÃO ───────────────────────────────────────────────────────────
 // Defina como true para pular o login e acessar direto como admin.
 // Volte para false quando quiser reativar a autenticação.
-const SKIP_AUTH = true;
+const SKIP_AUTH = false;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AuthContext = createContext(null);
