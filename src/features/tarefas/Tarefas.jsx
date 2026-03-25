@@ -223,7 +223,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
         title="Expandir"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-          <polyline points="15 18 9 12 15 6" /><polyline points="9 18 3 12 9 6" />
+          <polyline points="9 18 15 12 9 6" /><polyline points="15 18 21 12 15 6" />
         </svg>
       </button>
       <span style={{
@@ -291,7 +291,7 @@ function Coluna({ coluna, onAddTarefa, onToggleTarefa, onDeleteTarefa, onCorTare
                      flexShrink: 0 }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="9 18 15 12 9 6" /><polyline points="15 18 21 12 15 6" />
+              <polyline points="15 18 9 12 15 6" /><polyline points="9 18 3 12 9 6" />
             </svg>
           </button>
 
