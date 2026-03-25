@@ -13,6 +13,7 @@ const OrdensProducao = lazy(() => import("./features/pedidos/OrdensProducao"));
 const Servicos       = lazy(() => import("./features/servicos/Servicos"));
 const Estoque        = lazy(() => import("./features/servicos/EstoqueSection"));
 const Configuracoes  = lazy(() => import("./features/configuracoes/Configuracoes"));
+const Tarefas        = lazy(() => import("./features/tarefas/Tarefas"));
 
 // ─── Indicador de carregamento ────────────────────────────────────────────────
 function PageLoader() {
@@ -49,6 +50,7 @@ const NAV_ITEMS = [
   { id: "ordens",        label: "Ordens de Produção" },
   { id: "servicos",      label: "Serviços" },
   { id: "estoque",       label: "Estoque" },
+  { id: "tarefas",      label: "Tarefas" },
   { id: "---", label: null },
   { id: "configuracoes", label: "⚙ Configurações" },
 ];
@@ -59,6 +61,7 @@ const PAGE_LABELS = {
   ordens:        "Ordens de Produção",
   servicos:      "Serviços",
   estoque:       "Estoque",
+  tarefas:       "Tarefas",
   configuracoes: "Configurações",
 };
 
@@ -270,6 +273,7 @@ export default function App() {
                     <Servicos orders={orders} />
                   )}
                   {currentTab === "estoque" && <Estoque />}
+                  {currentTab === "tarefas" && <Tarefas />}
                   {currentTab === "configuracoes" && user?.role === "admin" && <Configuracoes />}
                 </Suspense>
               </ErrorBoundary>
